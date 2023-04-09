@@ -53,12 +53,19 @@ prepare_environment() {
   mkdir -p "${CANVAS_ADMIN_HOME}logs"
   mkdir -p "${CANVAS_ADMIN_HOME}conf"
 
+  # Define the URL for the remote script
+  remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
+
+  # Check if canvas-admin.sh exists in the bin directory
+  if [ ! -f "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
+    log "info" "Downloading the latest version of canvas-admin.sh..."
+    curl -s -o "${CANVAS_ADMIN_BIN}canvas-admin.sh" "$remote_script_url"
+  fi
+
   # Check if canvas-admin.sh is executable
   if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
     log "info" "Making canvas-admin.sh executable..."
     chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-  else
-    log "info" "canvas-admin.sh is already executable."
   fi
 
   # Check if the bin directory is in the user PATH environment variable
@@ -66,8 +73,6 @@ prepare_environment() {
     log "info" "Adding ${CANVAS_ADMIN_BIN} to PATH environment variable..."
     echo "export PATH=\$PATH:${CANVAS_ADMIN_BIN}" >> "${HOME}/.bashrc"
     source "${HOME}/.bashrc"
-  else
-    log "info" "${CANVAS_ADMIN_BIN} is already in the PATH environment variable."
   fi
 
   log "info" "Environment prepared."
