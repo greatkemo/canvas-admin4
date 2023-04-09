@@ -16,6 +16,11 @@
 # Functions
 
 log() {
+    if [[ -e "${config_file}" ]]; then
+        source "${config_file}"
+    else
+        mkdir -p "${HOME}/Canvas/logs/"
+    fi
   log_level="$1"
   message="$2"
   timestamp=$(date "+%Y-%m-%d %H:%M:%S")
@@ -37,7 +42,7 @@ log() {
       echo "Invalid log level. Please use 'info', 'warn', or 'error'."
       exit 1
   esac
-
+  
   log_output="[$timestamp] [$log_label] $message"
   echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
 }
@@ -46,7 +51,7 @@ prepare_environment() {
   log "info" "Preparing environment..."
 
   # Create directories if they don't exist
-  mkdir -p "$CANVAS_ADMIN_HOME"
+  mkdir -p "${CANVAS_ADMIN_HOME}"
   mkdir -p "${CANVAS_ADMIN_HOME}bin"
   mkdir -p "${CANVAS_ADMIN_HOME}Downloads"
   mkdir -p "${CANVAS_ADMIN_HOME}tmp"
@@ -129,6 +134,7 @@ generate_conf() {
 
 validate_setup() {
   # Check if the necessary directories exist
+  source "$config_file"
   if [ ! -d "${CANVAS_ADMIN_HOME}" ] || [ ! -d "${CANVAS_ADMIN_HOME}bin" ] || [ ! -d "${CANVAS_ADMIN_HOME}Downloads" ] || [ ! -d "${CANVAS_ADMIN_HOME}tmp" ] || [ ! -d "${CANVAS_ADMIN_HOME}logs" ] || [ ! -d "${CANVAS_ADMIN_HOME}conf" ]; then
     return 1
   fi
@@ -144,7 +150,6 @@ validate_setup() {
     return 1
   fi
 
-  source "$config_file"
   if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_SCHOOL_NAME" ] || [ -z "$CANVAS_ADMIN_HOME" ] || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] || [ -z "$CANVAS_ADMIN_BIN" ]; then
     return 1
   fi
@@ -155,6 +160,7 @@ validate_setup() {
 }
 
 check_for_updates() {
+    source "$config_file"
   log "info" "Checking for updates..."
 
   # Define the URL for the remote script
@@ -184,6 +190,7 @@ check_for_updates() {
 }
 
 user_search() {
+    source "$config_file"
   search_pattern="$1"
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
@@ -212,6 +219,7 @@ user_search() {
 }
 
 course_settings() {
+    source "$config_file"
   setting_type="$1"
   setting_value="$2"
   course_id="$3"
@@ -248,6 +256,7 @@ course_settings() {
 }
 
 ccourse_books() {
+    source "$config_file"
   book_type="$1"
   course_id="$2"
 
