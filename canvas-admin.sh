@@ -116,33 +116,47 @@ generate_token() {
   # Check if the configuration file exists
   if [ ! -f "$config_file" ]; then
     # Prompt the user to enter an API Access Token
-    log "warn" "The canvas.conf configuration file was not found."
+    log "info" "The canvas.conf configuration file was not found."
     log "info" "Please follow the instructions to generate an API Access Token:"
     log "info" "https://canvas.instructure.com/doc/api/file.oauth.html#manual-token-generation"
     read -rp "Enter your Canvas API Access Token: " entered_token
     read -rp "Enter your Canvas Institute URL: " entered_url
+    read -rp "Enter your Canvas Account ID: " entered_account_id
+    read -rp "Enter your Canvas School Name: " entered_school_name
 
     # Save the access token and institute URL in the configuration file
     echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
-    echo "CANVAS_INSTITUE_URL=\"$entered_url\"" >> "$config_file"
+    {
+        echo "CANVAS_INSTITUE_URL=\"$entered_url\""
+        echo "CANVAS_ACCOUNT_ID=\"$entered_account_id\""
+        echo "CANVAS_SCHOOL_NAME=\"$entered_school_name\""
+        echo "CANVAS_ADMIN_HOME=\"${HOME}/Canvas/\""
+        echo "CANVAS_ADMIN_CONF=\"${HOME}/Canvas/conf/\""
+        echo "CANVAS_ADMIN_LOG=\"${HOME}/Canvas/logs/\""
+        echo "CANVAS_ADMIN_DL=\"${HOME}/Canvas/Downloads/\""
+        echo "CANVAS_ADMIN_TMP=\"${HOME}/Canvas/tmp/\""
+        echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
+    } >> "$config_file"
+
 
     # Load the access token and institute URL variables
     source "$config_file"
 
-    log "info" "Access token and Institute URL saved in the configuration file."
+    log "info" "Access token, Institute URL, Account ID, and School Name saved in the configuration file."
   else
     # Load the access token and institute URL variables
     source "$config_file"
 
     # Validate the access token (this is a simple check, you may want to perform additional validation)
-    if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ]; then
-      log "error" "The Canvas API Access Token or Institute URL is not set in the configuration file."
+    if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_SCHOOL_NAME" ]; then
+      log "error" "The Canvas API Access Token, Institute URL, Account ID, or School Name is not set in the configuration file."
       exit 1
     else
-      log "info" "Canvas API access token and Institute URL found in the configuration file."
+      log "info" "Canvas API access token, Institute URL, Account ID, and School Name found in the configuration file."
     fi
   fi
 }
+
 
 user_search() {
   search_pattern="$1"
