@@ -410,6 +410,10 @@ while [ "$#" -gt 0 ]; do
       usage
       exit 0
       ;;
+    -update|--update)
+      check_for_updates
+      exit 0
+      ;;
     -u|-user|--user)
       shift
       user_search "$1"
