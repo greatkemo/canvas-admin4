@@ -328,8 +328,8 @@ if [ ! -f "${CANVAS_ADMIN_HOME}.done" ]; then
   generate_token
 
   # Validate the setup and create the .done file
-  validate_setup
-  if [ $? -ne 0 ]; then
+  
+  if ! validate_setup; then
     log "error" "Validation failed. Please check the setup."
     exit 1
   fi
