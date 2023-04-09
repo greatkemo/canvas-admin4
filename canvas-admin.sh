@@ -31,7 +31,7 @@ log() {
   esac
   
   log_output="[$timestamp] [$log_label] $message"
-  echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
+  echo -e "${log_color}${log_output}\033[0m" | tee -a "${HOME}/Canvas/logs/canvas-admin.log"
 }
 
 prepare_environment() {
@@ -69,8 +69,10 @@ prepare_environment() {
 
     # Check if there is a bin directory in user home
     if [[ -d "${HOME}/bin" ]]; then
+        unlink "${HOME}/bin/canvas-admin" >/dev/null 2>&1
         ln -s "${CANVAS_ADMIN_BIN}canvas-admin.sh" "${HOME}/bin/canvas-admin"
     else
+        unlink "/usr/local/bin/canvas-admin" >/dev/null 2>&1
         ln -s "${CANVAS_ADMIN_BIN}canvas-admin.sh" "/usr/local/bin/canvas-admin"
     fi
 
