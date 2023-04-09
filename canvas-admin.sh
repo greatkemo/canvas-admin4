@@ -38,12 +38,19 @@ prepare_environment() {
   log "info" "Preparing environment..."
 
   # Create directories if they don't exist
-  mkdir -p "${HOME}/Canvas/"
-  mkdir -p "${HOME}/Canvas/bin/"
-  mkdir -p "${HOME}/Canvas/Downloads/"
-  mkdir -p "${HOME}/Canvas/tmp/"
-  mkdir -p "${HOME}/Canvas/logs/"
-  mkdir -p "${HOME}/Canvas/conf/"
+    mkdir -p "${HOME}/Canvas/"
+    mkdir -p "${HOME}/Canvas/bin/"
+    mkdir -p "${HOME}/Canvas/Downloads/"
+    mkdir -p "${HOME}/Canvas/tmp/"
+    mkdir -p "${HOME}/Canvas/logs/"
+    mkdir -p "${HOME}/Canvas/conf/"
+
+    CANVAS_ADMIN_HOME="${HOME}/Canvas/"
+    CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
+    CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
+    CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
+    CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
+    CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
 
   # Define the URL for the remote script
   remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
@@ -83,7 +90,14 @@ generate_conf() {
   log "info" "Checking Canvas API access token..."
 
   # Define the configuration file path
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+    CANVAS_ADMIN_HOME="${HOME}/Canvas/"
+    CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
+    CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
+    CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
+    CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
+    CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
+    
+    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 
   # Check if the configuration file exists
   if [ ! -f "$config_file" ]; then
