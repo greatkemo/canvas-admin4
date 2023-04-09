@@ -256,8 +256,8 @@ user_search() {
 
   # Parse the response and create the CSV file
   log "info" "Parsing API response and generating CSV file..."
-  echo "\"user_id\",\"integration_id\",\"login_id\",\"password\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\"" > "$output_file"
-  echo "$response" | jq -r '.[] | [.id, .integration_id, .login_id, .password, .name, .sortable_name, .short_name, .email, .workflow_state] | @csv' >> "$output_file"
+  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+  echo "$response" | jq -r '.[] | [.id, .sis_user_id, .integration_id, .authentication_provider_id, .login_id, .name, .sortable_name, .short_name, .email, .workflow_state, .created_by_sis] | @csv' >> "$output_file"
 
   log "info" "User search results saved to: $output_file"
 }
