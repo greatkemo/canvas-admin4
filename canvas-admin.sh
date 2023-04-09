@@ -1,18 +1,5 @@
 #!/usr/bin/env bash
 
-# Define variables
-#CANVAS_INSTITUE_URL=""
-#CANVAS_ACCESS_TOKEN=""
-#CANVAS_ACCOUNT_ID=""
-#CANVAS_SCHOOL_NAME=""
-
-#CANVAS_ADMIN_HOME="${HOME}/Canvas/"
-#CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
-#CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
-#CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
-#CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
-#CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
-
 # Functions
 
 log() {
@@ -79,6 +66,13 @@ prepare_environment() {
     echo "export PATH=\$PATH:${CANVAS_ADMIN_BIN}" >> "${HOME}/.bashrc"
     source "${HOME}/.bashrc"
   fi
+
+    # Check if there is a bin directory in user home
+    if [[ -d "${HOME}/bin" ]]; then
+        ln -s "${CANVAS_ADMIN_BIN}canvas-admin.sh" "${HOME}/bin/canvas-admin"
+    else
+        ln -s "${CANVAS_ADMIN_BIN}canvas-admin.sh" "/usr/local/bin/canvas-admin"
+    fi
 
   log "info" "Environment prepared."
 }
