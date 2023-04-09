@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
 # Define variables
-CANVAS_INSTITUE_URL=""
-CANVAS_ACCESS_TOKEN=""
-CANVAS_ACCOUNT_ID=""
-CANVAS_SCHOOL_NAME=""
+#CANVAS_INSTITUE_URL=""
+#CANVAS_ACCESS_TOKEN=""
+#CANVAS_ACCOUNT_ID=""
+#CANVAS_SCHOOL_NAME=""
 
-CANVAS_ADMIN_HOME="${HOME}/Canvas/"
-CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
-CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
-CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
-CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
-CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
+#CANVAS_ADMIN_HOME="${HOME}/Canvas/"
+#CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
+#CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
+#CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
+#CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
+#CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
 
 # Functions
 
@@ -39,7 +39,7 @@ log() {
   esac
 
   log_output="[$timestamp] [$log_label] $message"
-  echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}/canvas-admin.log"
+  echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
 }
 
 prepare_environment() {
