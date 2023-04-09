@@ -138,7 +138,6 @@ generate_token() {
         echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
     } >> "$config_file"
 
-
     # Load the access token and institute URL variables
     source "$config_file"
 
@@ -157,6 +156,32 @@ generate_token() {
   fi
 }
 
+validate_setup() {
+  # Check if the necessary directories exist
+  if [ ! -d "${CANVAS_ADMIN_HOME}" ] || [ ! -d "${CANVAS_ADMIN_HOME}bin" ] || [ ! -d "${CANVAS_ADMIN_HOME}Downloads" ] || [ ! -d "${CANVAS_ADMIN_HOME}tmp" ] || [ ! -d "${CANVAS_ADMIN_HOME}logs" ] || [ ! -d "${CANVAS_ADMIN_HOME}conf" ]; then
+    return 1
+  fi
+
+  # Check if canvas-admin.sh exists and is executable
+  if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
+    return 1
+  fi
+
+  # Check if the configuration file exists and contains the required variables
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  if [ ! -f "$config_file" ]; then
+    return 1
+  fi
+
+  source "$config_file"
+  if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_SCHOOL_NAME" ] || [ -z "$CANVAS_ADMIN_HOME" ] || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] || [ -z "$CANVAS_ADMIN_BIN" ]; then
+    return 1
+  fi
+
+  # If all checks passed, create the .done file
+  touch "${CANVAS_ADMIN_HOME}.done"
+  return 0
+}
 
 user_search() {
   search_pattern="$1"
@@ -298,9 +323,19 @@ usage() {
 # Main script
 
 # Call the necessary functions
-prepare_environment
+if [ ! -f "${CANVAS_ADMIN_HOME}.done" ]; then
+  prepare_environment
+  generate_token
+
+  # Validate the setup and create the .done file
+  validate_setup
+  if [ $? -ne 0 ]; then
+    log "error" "Validation failed. Please check the setup."
+    exit 1
+  fi
+fi
+
 check_for_updates
-generate_token
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
