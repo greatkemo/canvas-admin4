@@ -337,6 +337,8 @@ fi
 
 check_for_updates
 
+source "$config_file"
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h|-help|--help)
