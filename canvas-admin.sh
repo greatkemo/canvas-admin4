@@ -78,36 +78,7 @@ prepare_environment() {
   log "info" "Environment prepared."
 }
 
-check_for_updates() {
-  log "info" "Checking for updates..."
-
-  # Define the URL for the remote script
-  remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
-
-  # Download the remote script into the tmp directory
-  curl -s -o "${CANVAS_ADMIN_TMP}canvas-admin.sh" "$remote_script_url"
-
-  # Check if the downloaded script is different from the local script
-  if ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
-    # Prompt the user to update
-    read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
-    if [[ "$update_choice" =~ ^[Yy]$|^$ ]]; then
-      # Update the local script
-      mv "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-      chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-      log "info" "Updated canvas-admin.sh to the latest version."
-    else
-      log "info" "Update skipped."
-    fi
-  else
-    log "info" "canvas-admin.sh is already up-to-date."
-  fi
-
-  # Clean up the tmp directory
-  rm -f "${CANVAS_ADMIN_TMP}canvas-admin.sh"
-}
-
-generate_token() {
+generate_conf() {
   log "info" "Checking Canvas API access token..."
 
   # Define the configuration file path
@@ -181,6 +152,35 @@ validate_setup() {
   # If all checks passed, create the .done file
   touch "${CANVAS_ADMIN_HOME}.done"
   return 0
+}
+
+check_for_updates() {
+  log "info" "Checking for updates..."
+
+  # Define the URL for the remote script
+  remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
+
+  # Download the remote script into the tmp directory
+  curl -s -o "${CANVAS_ADMIN_TMP}canvas-admin.sh" "$remote_script_url"
+
+  # Check if the downloaded script is different from the local script
+  if ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
+    # Prompt the user to update
+    read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
+    if [[ "$update_choice" =~ ^[Yy]$|^$ ]]; then
+      # Update the local script
+      mv "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"
+      chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
+      log "info" "Updated canvas-admin.sh to the latest version."
+    else
+      log "info" "Update skipped."
+    fi
+  else
+    log "info" "canvas-admin.sh is already up-to-date."
+  fi
+
+  # Clean up the tmp directory
+  rm -f "${CANVAS_ADMIN_TMP}canvas-admin.sh"
 }
 
 user_search() {
@@ -325,7 +325,7 @@ usage() {
 # Call the necessary functions
 if [ ! -f "${CANVAS_ADMIN_HOME}.done" ]; then
   prepare_environment
-  generate_token
+  generate_conf
 
   # Validate the setup and create the .done file
   
