@@ -38,12 +38,12 @@ prepare_environment() {
   log "info" "Preparing environment..."
 
   # Create directories if they don't exist
-  mkdir -p "${CANVAS_ADMIN_HOME}"
-  mkdir -p "${CANVAS_ADMIN_HOME}bin"
-  mkdir -p "${CANVAS_ADMIN_HOME}Downloads"
-  mkdir -p "${CANVAS_ADMIN_HOME}tmp"
-  mkdir -p "${CANVAS_ADMIN_HOME}logs"
-  mkdir -p "${CANVAS_ADMIN_HOME}conf"
+  mkdir -p "${HOME}/Canvas/"
+  mkdir -p "${HOME}/Canvas/bin/"
+  mkdir -p "${HOME}/Canvas/Downloads/"
+  mkdir -p "${HOME}/Canvas/tmp/"
+  mkdir -p "${HOME}/Canvas/logs/"
+  mkdir -p "${HOME}/Canvas/conf/"
 
   # Define the URL for the remote script
   remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
