@@ -15,8 +15,35 @@ CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
 
 # Functions
 
+log() {
+  log_level="$1"
+  message="$2"
+  timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+  
+  case "$log_level" in
+    info)
+      log_label="INFO"
+      log_color="\033[32m" # Green
+      ;;
+    warn)
+      log_label="WARN"
+      log_color="\033[33m" # Yellow
+      ;;
+    error)
+      log_label="ERROR"
+      log_color="\033[31m" # Red
+      ;;
+    *)
+      echo "Invalid log level. Please use 'info', 'warn', or 'error'."
+      exit 1
+  esac
+
+  log_output="[$timestamp] [$log_label] $message"
+  echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}/canvas-admin.log"
+}
+
 prepare_environment() {
-  echo "Preparing environment..."
+  log "info" "Preparing environment..."
 
   # Create directories if they don't exist
   mkdir -p "$CANVAS_ADMIN_HOME"
@@ -28,23 +55,26 @@ prepare_environment() {
 
   # Check if canvas-admin.sh is executable
   if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
-    echo "Making canvas-admin.sh executable..."
+    log "info" "Making canvas-admin.sh executable..."
     chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
+  else
+    log "info" "canvas-admin.sh is already executable."
   fi
 
   # Check if the bin directory is in the user PATH environment variable
   if [[ ":$PATH:" != *":${CANVAS_ADMIN_BIN}:"* ]]; then
-    echo "Adding ${CANVAS_ADMIN_BIN} to PATH environment variable..."
+    log "info" "Adding ${CANVAS_ADMIN_BIN} to PATH environment variable..."
     echo "export PATH=\$PATH:${CANVAS_ADMIN_BIN}" >> "${HOME}/.bashrc"
     source "${HOME}/.bashrc"
+  else
+    log "info" "${CANVAS_ADMIN_BIN} is already in the PATH environment variable."
   fi
 
-  echo "Environment prepared."
+  log "info" "Environment prepared."
 }
 
-
 check_for_updates() {
-  echo "Checking for updates..."
+  log "info" "Checking for updates..."
 
   # Define the URL for the remote script
   remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
@@ -55,17 +85,17 @@ check_for_updates() {
   # Check if the downloaded script is different from the local script
   if ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
     # Prompt the user to update
-    read -p "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
+    read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
     if [[ "$update_choice" =~ ^[Yy]$|^$ ]]; then
       # Update the local script
       mv "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"
       chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-      echo "Updated canvas-admin.sh to the latest version."
+      log "info" "Updated canvas-admin.sh to the latest version."
     else
-      echo "Update skipped."
+      log "info" "Update skipped."
     fi
   else
-    echo "canvas-admin.sh is already up-to-date."
+    log "info" "canvas-admin.sh is already up-to-date."
   fi
 
   # Clean up the tmp directory
@@ -73,7 +103,7 @@ check_for_updates() {
 }
 
 generate_token() {
-  echo "Checking Canvas API access token..."
+  log "info" "Checking Canvas API access token..."
 
   # Define the configuration file path
   config_file="${CANVAS_ADMIN_CONF}canvas.conf"
@@ -81,11 +111,11 @@ generate_token() {
   # Check if the configuration file exists
   if [ ! -f "$config_file" ]; then
     # Prompt the user to enter an API Access Token
-    echo "The canvas.conf configuration file was not found."
-    echo "Please follow the instructions to generate an API Access Token:"
-    echo "https://canvas.instructure.com/doc/api/file.oauth.html#manual-token-generation"
-    read -p "Enter your Canvas API Access Token: " entered_token
-    read -p "Enter your Canvas Institute URL: " entered_url
+    log "warn" "The canvas.conf configuration file was not found."
+    log "info" "Please follow the instructions to generate an API Access Token:"
+    log "info" "https://canvas.instructure.com/doc/api/file.oauth.html#manual-token-generation"
+    read -rp "Enter your Canvas API Access Token: " entered_token
+    read -rp "Enter your Canvas Institute URL: " entered_url
 
     # Save the access token and institute URL in the configuration file
     echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
@@ -94,17 +124,17 @@ generate_token() {
     # Load the access token and institute URL variables
     source "$config_file"
 
-    echo "Access token and Institute URL saved in the configuration file."
+    log "info" "Access token and Institute URL saved in the configuration file."
   else
     # Load the access token and institute URL variables
     source "$config_file"
 
     # Validate the access token (this is a simple check, you may want to perform additional validation)
     if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ]; then
-      echo "Error: The Canvas API Access Token or Institute URL is not set in the configuration file."
+      log "error" "The Canvas API Access Token or Institute URL is not set in the configuration file."
       exit 1
     else
-      echo "Canvas API access token and Institute URL found in the configuration file."
+      log "info" "Canvas API access token and Institute URL found in the configuration file."
     fi
   fi
 }
@@ -113,7 +143,7 @@ user_search() {
   search_pattern="$1"
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
-  echo "Searching for users matching the pattern: $search_pattern"
+  log "info" "Searching for users matching the pattern: $search_pattern"
 
   # Define the API endpoint for searching users
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
@@ -126,7 +156,7 @@ user_search() {
 
   # Check if the response is empty
   if [ -z "$response" ] || [ "$response" == "[]" ]; then
-    echo "No users found."
+    log "info" "No users found."
     return
   fi
 
@@ -134,7 +164,7 @@ user_search() {
   echo "\"user_id\",\"integration_id\",\"login_id\",\"password\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\"" > "$output_file"
   echo "$response" | jq -r '.[] | [.id, .integration_id, .login_id, .password, .name, .sortable_name, .short_name, .email, .workflow_state] | @csv' >> "$output_file"
 
-  echo "User search results saved to: $output_file"
+  log "info" "User search results saved to: $output_file"
 }
 
 course_settings() {
@@ -142,7 +172,7 @@ course_settings() {
   setting_value="$2"
   course_id="$3"
 
-  echo "Applying settings to course ID: $course_id"
+  log "info" "Applying settings to course ID: $course_id"
 
   api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id"
 
@@ -160,7 +190,7 @@ course_settings() {
       api_data="{\"course\": {\"time_zone\": \"$setting_value\", \"hide_distribution_graphs\": true}}"
       ;;
     *)
-      echo "Invalid setting type. Please use 'timezone', 'config', or 'all'."
+      log "error" "Invalid setting type. Please use 'timezone', 'config', or 'all'."
       exit 1
   esac
 
@@ -170,14 +200,14 @@ course_settings() {
     -H "Content-Type: application/json" \
     -d "$api_data"
 
-  echo "Settings applied to course ID: $course_id"
+  log "info" "Settings applied to course ID: $course_id"
 }
 
-course_books() {
+ccourse_books() {
   book_type="$1"
   course_id="$2"
 
-  echo "Adding online textbook links to course ID: $course_id"
+  log "info" "Adding online textbook links to course ID: $course_id"
 
   # Create the "Online Textbooks" module
   api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id/modules"
@@ -188,7 +218,7 @@ course_books() {
     -H "Content-Type: application/json" \
     -d "$module_data" | jq -r '.id')
 
-  echo "Created 'Online Textbooks' module with ID: $module_id"
+  log "info" "Created 'Online Textbooks' module with ID: $module_id"
 
   # Define the API endpoint for adding items to the module
   api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id/modules/$module_id/items"
@@ -209,7 +239,7 @@ course_books() {
       return
       ;;
     *)
-      echo "Invalid book type. Please use 'redshelf', 'vitalsource', or 'all'."
+      log "error" "Invalid book type. Please use 'redshelf', 'vitalsource', or 'all'."
       exit 1
   esac
 
@@ -221,10 +251,8 @@ course_books() {
     -H "Content-Type: application/json" \
     -d "$book_data"
 
-  echo "Added '$book_title' link to the 'Online Textbooks' module in course ID: $course_id"
+  log "info" "Added '$book_title' link to the 'Online Textbooks' module in course ID: $course_id"
 }
-
-
 
 usage() {
   echo "Usage: ./canvas-admin.sh [options] [arg1] [arg2] [input]"
@@ -249,6 +277,12 @@ usage() {
 }
 
 # Main script
+
+# Call the necessary functions
+prepare_environment
+check_for_updates
+generate_token
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h|-help|--help)
@@ -271,11 +305,12 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     *)
-      echo "Unknown option: $1"
+      log "error" "Unknown option: $1"
       usage
       exit 1
       ;;
   esac
 done
+
 
 
