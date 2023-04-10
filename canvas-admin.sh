@@ -481,9 +481,8 @@ if [ ! -f "${HOME}/Canvas/.done" ]; then
   fi
 fi
 
-source "$config_file"
-
 while [ "$#" -gt 0 ]; do
+source "$config_file"
   case "$1" in
     help)
       usage
@@ -492,8 +491,10 @@ while [ "$#" -gt 0 ]; do
     update)
       shift
       if [ "$1" = "-y" ]; then
+        validate_setup
         check_for_updates "-y"
       else
+        validate_setup
         check_for_updates
       fi
       exit 0
@@ -506,19 +507,23 @@ while [ "$#" -gt 0 ]; do
     createcourse)
       shift
       if [ -n "$1" ] && [ -f "$1" ]; then
+        validate_setup
         create_course "$1"
         shift
       else
+        validate_setup
         create_course
       fi
       ;;
     courseconfig)
       shift
+      validate_setup
       course_configuration "$1" "$2" "$3"
       shift 3
       ;;
     books)
       shift
+      validate_setup
       course_books "$1" "$2"
       shift 2
       ;;
