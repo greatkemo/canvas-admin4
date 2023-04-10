@@ -482,8 +482,6 @@ if [ ! -f "${HOME}/Canvas/.done" ]; then
   fi
 fi
 
-source "$config_file"
-
 while [ "$#" -gt 0 ]; do
   case "$1" in
     help)
