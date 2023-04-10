@@ -196,6 +196,7 @@ validate_setup() {
 }
 
 check_for_updates() {
+  auto_update="$1"
   source "$config_file"
   log "info" "Checking for updates to canvas-admin.sh..."
 
@@ -210,8 +211,14 @@ check_for_updates() {
   if ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
     log "info" "A new version of canvas-admin.sh has been detected."
 
-    # Prompt the user to update
-    read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
+    if [ "$auto_update" == "-y" ]; then
+      log "info" "Auto-updating without prompting the user..."
+      update_choice="Y"
+    else
+      # Prompt the user to update
+      read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
+    fi
+
     if [[ "$update_choice" =~ ^[Yy]$|^$ ]]; then
       # Update the local script
       log "info" "Updating canvas-admin.sh to the latest version..."
@@ -264,7 +271,7 @@ user_search() {
   log "info" "User search results saved to: $output_file"
 }
 
-course_settings() {
+course_configuration() {
   source "$config_file"
   setting_type="$1"
   setting_value="$2"
@@ -275,17 +282,17 @@ course_settings() {
   api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id"
 
   case "$setting_type" in
-    timezone)
+    -timezone)
       # Set the course's IANA time zone
       api_data="{\"course\": {\"time_zone\": \"$setting_value\"}}"
       log "info" "Setting course time zone to: $setting_value"
       ;;
-    config)
+    -prefs)
       # Set the course's hide_distribution_graphs to true
       api_data="{\"course\": {\"hide_distribution_graphs\": true}}"
       log "info" "Hiding course distribution graphs"
       ;;
-    all)
+    -all)
       # Set the course's IANA time zone and hide_distribution_graphs
       api_data="{\"course\": {\"time_zone\": \"$setting_value\", \"hide_distribution_graphs\": true}}"
       log "info" "Setting course time zone to: $setting_value and hiding distribution graphs"
@@ -329,15 +336,15 @@ course_books() {
 
   # Add external links to the module based on the book type
   case "$book_type" in
-    redshelf)
+    -redshelf)
       book_title="RedShelf Inclusive"
       book_url="https://${CANVAS_SCHOOL_NAME}.redshelf.com/lti/my_courses/"
       ;;
-    vitalsource)
+    -vitalsource)
       book_title="VitalSource Course Materials"
       book_url="https://bc.vitalsource.com/books"
       ;;
-    all)
+    -all)
       course_books "redshelf" "$course_id"
       course_books "vitalsource" "$course_id"
       return
@@ -363,30 +370,30 @@ usage() {
   echo "Usage: ./canvas-admin.sh [options] [arg1] [arg2] [input]"
   echo ""
   echo "Options:"
-  echo "-h, -help, --help"
+  echo "help"
   echo "  Show this help message and exit."
   echo ""
-  echo "-update, --update"
+  echo "update"
   echo "  Checks GitHub for updates to the canvas-admin.sh script and prompts the user to update."
   echo ""
-  echo "-u, -user, --user"
+  echo "user"
   echo "  Search for users based on a search pattern and output their records to a CSV file."
-  echo "  Format: ./canvas-admin.sh -u \"user search pattern\""
-  echo "  Example: ./canvas-admin.sh -u \"john.doe\""
+  echo "  Format: ./canvas-admin.sh user \"user search pattern\""
+  echo "  Example: ./canvas-admin.sh user \"john.doe\""
   echo ""
-  echo "-s, -settings, --settings"
+  echo "courseconfig"
   echo "  Apply settings to a course using the specified arguments."
-  echo "  Format: ./canvas-admin.sh -s [timezone|config|all] [arg1] [arg2] [course id]"
-  echo "  Example: ./canvas-admin.sh -s timezone \"America/New_York\" 12345"
-  echo "           ./canvas-admin.sh -s config 12345"
-  echo "           ./canvas-admin.sh -s all \"America/New_York\" 12345"
+  echo "  Format: ./canvas-admin.sh courseconfig [timezone|config|all] [arg1] [arg2] [course id]"
+  echo "  Example: ./canvas-admin.sh courseconfig -timezone \"America/New_York\" 12345"
+  echo "           ./canvas-admin.sh courseconfig -prefs 12345"
+  echo "           ./canvas-admin.sh courseconfig -all \"America/New_York\" 12345"
   echo ""
-  echo "-b, -books, --books"
+  echo "books"
   echo "  Create a module called 'Online Textbooks' and add external links to the module based on the book type."
-  echo "  Format: ./canvas-admin.sh -b [redshelf|vitalsource|all] [course id]"
-  echo "  Example: ./canvas-admin.sh -b redshelf 12345"
-  echo "           ./canvas-admin.sh -b vitalsource 12345"
-  echo "           ./canvas-admin.sh -b all 12345"
+  echo "  Format: ./canvas-admin.sh books [redshelf|vitalsource|all] [course id]"
+  echo "  Example: ./canvas-admin.sh books -redshelf 12345"
+  echo "           ./canvas-admin.sh books -vitalsource 12345"
+  echo "           ./canvas-admin.sh books -all 12345"
   echo ""
   echo "Please refer to the documentation for more information."
 }
@@ -411,25 +418,30 @@ source "$config_file"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    -h|-help|--help)
+    help)
       usage
       exit 0
       ;;
-    -update|--update)
-      check_for_updates
+    update)
+      shift
+      if [ "$1" = "-y" ]; then
+        check_for_updates "-y"
+      else
+        check_for_updates
+      fi
       exit 0
       ;;
-    -u|-user|--user)
+    user)
       shift
       user_search "$1"
       shift
       ;;
-    -s|-settings|--settings)
+    courseconfig)
       shift
-      course_settings "$1" "$2" "$3"
+      course_configuration "$1" "$2" "$3"
       shift 3
       ;;
-    -b|-books|--books)
+    books)
       shift
       course_books "$1" "$2"
       shift 2
