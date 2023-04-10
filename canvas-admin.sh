@@ -89,12 +89,17 @@ prepare_environment() {
   fi
 
   # Check if the bin directory is in the user PATH environment variable
-  if [[ ":$PATH:" != *":${HOME}/bin:"* ]]; then
+    if [[ ":$PATH:" != *":${HOME}/bin:"* ]]; then
     log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
+    
+    if [ ! -f "${HOME}/.bash_profile" ]; then
+        touch "${HOME}/.bash_profile"
+    fi
+
     echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
     source "${HOME}/.bash_profile"
-    log "info" "${CANVAS_ADMIN_BIN} added to PATH environment variable."
-  fi
+    log "info" "${HOME}/bin added to PATH environment variable."
+    fi
 
   # Check if there is a bin directory in user home
   log "info" "Creating symbolic link for canvas-admin.sh..."
