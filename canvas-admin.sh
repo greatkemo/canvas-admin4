@@ -48,6 +48,7 @@ prepare_environment() {
   mkdir -p "${HOME}/Canvas/tmp/"
   mkdir -p "${HOME}/Canvas/logs/"
   mkdir -p "${HOME}/Canvas/conf/"
+  touch "${HOME}/Canvas/conf/canvas.conf"
 
   CANVAS_ADMIN_HOME="${HOME}/Canvas/"
   CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
@@ -55,6 +56,8 @@ prepare_environment() {
   CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
   CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
   CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
+
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 
   log "info" "Directories created."
 
@@ -149,7 +152,6 @@ generate_conf() {
     } >> "$config_file"
 
     # Load the access token and institute URL variables
-    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
     source "$config_file"
 
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
@@ -157,7 +159,6 @@ generate_conf() {
     log "info" "canvas.conf configuration file foundsource Loading access token and other configuration variables..."
 
     # Load the access token and institute URL variables
-    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
     source "$config_file"
 
     # Validate the access token (this is a simple check, you may want to perform additional validation)
@@ -174,8 +175,6 @@ validate_setup() {
   log "info" "Validating Canvas Admin setup..."
 
   # Check if the necessary directories exist
-    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   if [ ! -d "${CANVAS_ADMIN_HOME}" ] || [ ! -d "${CANVAS_ADMIN_HOME}bin" ] || [ ! -d "${CANVAS_ADMIN_HOME}Downloads" ] || [ ! -d "${CANVAS_ADMIN_HOME}tmp" ] || [ ! -d "${CANVAS_ADMIN_HOME}logs" ] || [ ! -d "${CANVAS_ADMIN_HOME}conf" ]; then
     log "error" "Required directories are missing or incorrect in the Canvas Admin setup."
     return 1
@@ -214,8 +213,6 @@ validate_setup() {
 }
 
 check_for_updates() {
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   auto_update="$1"
   log "info" "Checking for updates to canvas-admin.sh..."
 
@@ -258,8 +255,6 @@ check_for_updates() {
 }
 
 user_search() {
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   search_pattern="$1"
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
@@ -292,8 +287,6 @@ user_search() {
 }
 
 course_configuration() {
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   setting_type="$1"
   setting_value="$2"
   course_id="$3"
@@ -334,8 +327,6 @@ course_configuration() {
 }
 
 course_books() {
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   book_type="$1"
   course_id="$2"
 
@@ -389,8 +380,6 @@ course_books() {
 }
 
 create_single_course() {
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   course_name="$1"
   course_code="$2"
   term_id="$3"
@@ -422,8 +411,6 @@ create_single_course() {
 }
 
 create_course() {
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  source "$config_file"
   csv_file="$1"
 
   if [ -n "$csv_file" ] && [ -f "$csv_file" ]; then
@@ -489,11 +476,16 @@ if [ ! -f "${HOME}/Canvas/.done" ]; then
   generate_conf
 
   # Validate the setup and create the .done file
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  source "$config_file"
   if ! validate_setup; then
     log "error" "Validation failed. Please check the setup."
     exit 1
   fi
 fi
+
+config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+source "$config_file"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
