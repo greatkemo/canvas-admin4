@@ -574,7 +574,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     *)
-      log "error" "Unknown option: $1"
+      log "error" "Unknown option: $1. Please try again."
       usage
       exit 1
       ;;
