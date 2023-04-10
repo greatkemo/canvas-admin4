@@ -8,6 +8,8 @@ CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
 CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
 CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
 
+config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+
 # Functions
 
 log() {
