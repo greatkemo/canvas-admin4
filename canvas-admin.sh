@@ -211,6 +211,7 @@ validate_setup() {
 }
 
 check_for_updates() {
+  validate_setup
   auto_update="$1"
   log "info" "Checking for updates to canvas-admin.sh..."
 
@@ -253,6 +254,7 @@ check_for_updates() {
 }
 
 user_search() {
+  validate_setup
   search_pattern="$1"
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
@@ -285,6 +287,7 @@ user_search() {
 }
 
 course_configuration() {
+  validate_setup
   setting_type="$1"
   setting_value="$2"
   course_id="$3"
@@ -325,6 +328,7 @@ course_configuration() {
 }
 
 course_books() {
+  validate_setup
   book_type="$1"
   course_id="$2"
 
@@ -409,6 +413,7 @@ create_single_course() {
 }
 
 create_course() {
+  validate_setup
   csv_file="$1"
 
   if [ -n "$csv_file" ] && [ -f "$csv_file" ]; then
@@ -491,10 +496,8 @@ source "$config_file"
     update)
       shift
       if [ "$1" = "-y" ]; then
-        validate_setup
         check_for_updates "-y"
       else
-        validate_setup
         check_for_updates
       fi
       exit 0
@@ -507,23 +510,19 @@ source "$config_file"
     createcourse)
       shift
       if [ -n "$1" ] && [ -f "$1" ]; then
-        validate_setup
         create_course "$1"
         shift
       else
-        validate_setup
         create_course
       fi
       ;;
     courseconfig)
       shift
-      validate_setup
       course_configuration "$1" "$2" "$3"
       shift 3
       ;;
     books)
       shift
-      validate_setup
       course_books "$1" "$2"
       shift 2
       ;;
