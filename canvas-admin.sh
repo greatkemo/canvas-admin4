@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 # constents
-
-PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:${HOME}/bin"
-
 CANVAS_ADMIN_HOME="${HOME}/Canvas/"
 CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
 CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
@@ -87,19 +84,28 @@ prepare_environment() {
     log "info" "canvas-admin.sh is now executable."
   fi
 
-  # Check if the bin directory is in the user PATH environment variable
-    if ! grep -q "${HOME}/bin" <<< "$PATH"; then
-        log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
-                    
+  # Check if the ${HOME}/bin directory is in the user PATH environment variable
+    if [[ -d "${HOME}/bin" ]]; then
+        if ! grep -q "${HOME}/bin" <<< "$PATH"; then
+            log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
+                        
+            if [ ! -f "${HOME}/.bash_profile" ]; then
+                touch "${HOME}/.bash_profile"
+            fi
+            echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
+            source "${HOME}/.bash_profile"
+            log "info" "${HOME}/bin added to PATH environment variable."
+        fi
+    else
+        log "warn" "${HOME}/bin directory does not exit. Creating it..."
+        mkdir -p "${HOME}/bin"
         if [ ! -f "${HOME}/.bash_profile" ]; then
             touch "${HOME}/.bash_profile"
         fi
-
         echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
         source "${HOME}/.bash_profile"
         log "info" "${HOME}/bin added to PATH environment variable."
     fi
-
 
   # Check if there is a bin directory in user home
   log "info" "Creating symbolic link for canvas-admin.sh..."
