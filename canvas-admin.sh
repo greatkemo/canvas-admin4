@@ -89,9 +89,9 @@ prepare_environment() {
   fi
 
   # Check if the bin directory is in the user PATH environment variable
-  if [[ ":$PATH:" != *":${CANVAS_ADMIN_BIN}:"* ]]; then
-    log "info" "${CANVAS_ADMIN_BIN} and ${HOME}/bin not found in PATH. Adding ${CANVAS_ADMIN_BIN} and ${HOME}/bin to PATH environment variable..."
-    echo "export PATH=\$PATH:${CANVAS_ADMIN_BIN}" >> "${HOME}/.bash_profile"
+  if [[ ":$PATH:" != *":${HOME}/bin:"* ]]; then
+    log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
+    echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
     source "${HOME}/.bash_profile"
     log "info" "${CANVAS_ADMIN_BIN} added to PATH environment variable."
   fi
