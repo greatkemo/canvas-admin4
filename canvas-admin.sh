@@ -84,29 +84,52 @@ prepare_environment() {
     log "info" "canvas-admin.sh is now executable."
   fi
 
+  # Check which SHELL is default and update it profile to include the PATH environment variable
   # Check if the ${HOME}/bin directory is in the user PATH environment variable
-    if [[ -d "${HOME}/bin" ]]; then
-        if ! grep -q "${HOME}/bin" <<< "$PATH"; then
-            log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
-                        
-            if [ ! -f "${HOME}/.bash_profile" ]; then
-                touch "${HOME}/.bash_profile"
-            fi
-            echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
-            source "${HOME}/.bash_profile"
-            log "info" "${HOME}/bin added to PATH environment variable."
-        fi
-    else
+    if [[ ! -d "${HOME}/bin" ]]; then
         log "warn" "${HOME}/bin directory does not exit. Creating it..."
         mkdir -p "${HOME}/bin"
-        if [ ! -f "${HOME}/.bash_profile" ]; then
-            touch "${HOME}/.bash_profile"
-        fi
-        echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
-        source "${HOME}/.bash_profile"
-        log "info" "${HOME}/bin added to PATH environment variable."
     fi
-
+        if ! grep -q "${HOME}/bin" <<< "$PATH"; then
+        case "$SHELL" in
+            */bash)
+            # Update .bashrc or .bash_profile for bash
+            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+            echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.bashrc"
+            source "${HOME}/.bashrc"
+            ;;
+            */zsh)
+            # Update .zshrc for zsh
+            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+            echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.zshrc"
+            source "${HOME}/.zshrc"
+            ;;
+            */csh)
+            # Update .cshrc for csh
+            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+            echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.cshrc"
+            source "${HOME}/.cshrc"
+            ;;
+            */tcsh)
+            # Update .tcshrc for tcsh
+            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+            echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.tcshrc"
+            source "${HOME}/.tcshrc"
+            ;;
+            */ksh)
+            # Update .kshrc for ksh
+            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+            echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.kshrc"
+            source "${HOME}/.kshrc"
+            ;;
+            *)
+            # Handle other shells or exit with a message
+            log "error" "Unsupported shell detected. Please manually add ${HOME}/bin to your PATH environment variable."
+            exit 1
+            ;;
+        esac
+    fi
+ 
   # Check if there is a bin directory in user home
   log "info" "Creating symbolic link for canvas-admin.sh..."
   if [[ -d "${HOME}/bin" ]]; then
