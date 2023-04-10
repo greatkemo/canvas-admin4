@@ -214,8 +214,9 @@ validate_setup() {
 }
 
 check_for_updates() {
-  auto_update="$1"
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   source "$config_file"
+  auto_update="$1"
   log "info" "Checking for updates to canvas-admin.sh..."
 
   # Define the URL for the remote script
@@ -257,6 +258,7 @@ check_for_updates() {
 }
 
 user_search() {
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   source "$config_file"
   search_pattern="$1"
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
@@ -290,6 +292,7 @@ user_search() {
 }
 
 course_configuration() {
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   source "$config_file"
   setting_type="$1"
   setting_value="$2"
@@ -331,6 +334,7 @@ course_configuration() {
 }
 
 course_books() {
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   source "$config_file"
   book_type="$1"
   course_id="$2"
@@ -385,6 +389,8 @@ course_books() {
 }
 
 create_single_course() {
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  source "$config_file"
   course_name="$1"
   course_code="$2"
   term_id="$3"
@@ -416,6 +422,7 @@ create_single_course() {
 }
 
 create_course() {
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   source "$config_file"
   csv_file="$1"
 
