@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+# constents
+CANVAS_ADMIN_HOME="${HOME}/Canvas/"
+CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
+CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
+CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
+CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
+CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
+
 # Functions
 
 log() {
@@ -102,13 +110,6 @@ generate_conf() {
   log "info" "Checking Canvas API access token..."
 
   # Define the configuration file path
-  CANVAS_ADMIN_HOME="${HOME}/Canvas/"
-  CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
-  CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
-  CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
-  CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
-  CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
-    
   config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 
   # Check if the configuration file exists
@@ -473,7 +474,6 @@ if [ ! -f "${HOME}/Canvas/.done" ]; then
   generate_conf
 
   # Validate the setup and create the .done file
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   source "$config_file"
   if ! validate_setup; then
     log "error" "Validation failed. Please check the setup."
@@ -481,7 +481,6 @@ if [ ! -f "${HOME}/Canvas/.done" ]; then
   fi
 fi
 
-config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 source "$config_file"
 
 while [ "$#" -gt 0 ]; do
