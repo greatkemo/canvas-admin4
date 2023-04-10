@@ -260,8 +260,7 @@ validate_setup() {
 }
 
 check_for_updates() {
-  validate_setup
-  auto_update="$1"
+  source "$config_file"
   log "info" "Checking for updates to canvas-admin.sh..."
 
   # Define the URL for the remote script
@@ -275,11 +274,11 @@ check_for_updates() {
   if ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
     log "info" "A new version of canvas-admin.sh has been detected."
 
-    if [ "$auto_update" == "-y" ]; then
-      log "info" "Auto-updating without prompting the user..."
-      update_choice="Y"
+    # Prompt the user to update
+    update_choice="n"
+    if [ "$1" == "-y" ]; then
+      update_choice="y"
     else
-      # Prompt the user to update
       read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
     fi
 
