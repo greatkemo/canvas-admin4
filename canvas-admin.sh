@@ -471,7 +471,7 @@ usage() {
 
 # Main script
 # Call the necessary functions
-if [ ! -f "${CANVAS_ADMIN_HOME}.done" ]; then
+if [ ! -f "${HOME}/Canvas/.done" ]; then
   prepare_environment
   generate_conf
 
