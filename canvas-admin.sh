@@ -119,12 +119,24 @@ generate_conf() {
     read -rp "Enter your Canvas Account ID: " entered_account_id
     read -rp "Enter your Canvas School Name: " entered_school_name
 
-    # Save the access token and institute URL in the configuration file
+    # Get the user's location and timezone based on their IP address
+    log "info" "Detecting your timezone based on your IP address..."
+    location_info=$(curl -s "http://ip-api.com/json")
+    detected_timezone=$(echo "$location_info" | jq -r '.timezone')
+
+    # Prompt the user to confirm or modify the timezone
+    read -rp "Detected Time Zone is $detected_timezone. Press Enter to accept, or type a new timezone: " entered_time_zone
+    if [ -z "$entered_time_zone" ]; then
+      entered_time_zone="$detected_timezone"
+    fi
+
+    # Save the access token, institute URL, account ID, school name, and timezone in the configuration file
     echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
     {
         echo "CANVAS_INSTITUE_URL=\"$entered_url\""
         echo "CANVAS_ACCOUNT_ID=\"$entered_account_id\""
         echo "CANVAS_SCHOOL_NAME=\"$entered_school_name\""
+        echo "CANVAS_DEFAULT_TIMEZONE=\"$entered_time_zone\""
         echo "CANVAS_ADMIN_HOME=\"${HOME}/Canvas/\""
         echo "CANVAS_ADMIN_CONF=\"${HOME}/Canvas/conf/\""
         echo "CANVAS_ADMIN_LOG=\"${HOME}/Canvas/logs/\""
@@ -136,7 +148,7 @@ generate_conf() {
     # Load the access token and institute URL variables
     source "$config_file"
 
-    log "info" "Access token, Institute URL, Account ID, and School Name saved in the configuration file."
+    log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
   else
     log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
 
@@ -366,6 +378,59 @@ course_books() {
   log "info" "Successfully added '$book_title' link to the 'Online Textbooks' module in course ID: $course_id"
 }
 
+create_single_course() {
+  course_name="$1"
+  course_code="$2"
+  term_id="$3"
+
+  # Define the API endpoint for creating courses
+  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/courses"
+
+  # Define the API request data
+  api_data="{\"course\": {\"name\": \"$course_name\", \"course_code\": \"$course_code\""
+  if [ -n "$term_id" ]; then
+    api_data="$api_data, \"term_id\": $term_id"
+  fi
+  api_data="$api_data}}"
+
+  # Perform the API request to create a course
+  log "info" "Sending API request to create a new course..."
+  response=$(curl -s -X POST "$api_endpoint" \
+    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$api_data")
+
+  # Extract the course ID from the response
+  course_id=$(echo "$response" | jq '.id')
+
+  log "info" "Course successfully created with ID: $course_id"
+
+  # Apply course_configuration -all function on the newly created course
+  course_configuration "-all" "$CANVAS_DEFAULT_TIMEZONE" "$course_id"
+}
+
+create_course() {
+  source "$config_file"
+  csv_file="$1"
+
+  if [ -n "$csv_file" ] && [ -f "$csv_file" ]; then
+    first_line=1
+    while IFS=, read -r course_name course_code term_id; do
+      if [ $first_line -eq 1 ]; then
+        first_line=0
+        continue
+      fi
+      create_single_course "$course_name" "$course_code" "$term_id"
+    done < "$csv_file"
+  else
+    read -rp "Enter the course name: " course_name
+    read -rp "Enter the course code: " course_code
+    read -rp "Enter the term ID (optional): " term_id
+
+    create_single_course "$course_name" "$course_code" "$term_id"
+  fi
+}
+
 usage() {
   echo "Usage: ./canvas-admin.sh [options] [arg1] [arg2] [input]"
   echo ""
@@ -395,11 +460,16 @@ usage() {
   echo "           ./canvas-admin.sh books -vitalsource 12345"
   echo "           ./canvas-admin.sh books -all 12345"
   echo ""
+  echo "createcourse"
+  echo "  Create a new course using user prompts or a CSV file as input."
+  echo "  Format: ./canvas-admin.sh createcourse [input]"
+  echo "  Example: ./canvas-admin.sh createcourse"
+  echo "           ./canvas-admin.sh createcourse input.csv"
+  echo ""
   echo "Please refer to the documentation for more information."
 }
 
 # Main script
-
 # Call the necessary functions
 if [ ! -f "${CANVAS_ADMIN_HOME}.done" ]; then
   prepare_environment
@@ -435,6 +505,15 @@ while [ "$#" -gt 0 ]; do
       shift
       user_search "$1"
       shift
+      ;;
+    createcourse)
+      shift
+      if [ -n "$1" ] && [ -f "$1" ]; then
+        create_course "$1"
+        shift
+      else
+        create_course
+      fi
       ;;
     courseconfig)
       shift
