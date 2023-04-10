@@ -505,7 +505,6 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     createcourse)
-      check_for_updates
       shift
       if [ -n "$1" ] && [ -f "$1" ]; then
         create_course "$1"
@@ -515,13 +514,11 @@ while [ "$#" -gt 0 ]; do
       fi
       ;;
     courseconfig)
-      check_for_updates
       shift
       course_configuration "$1" "$2" "$3"
       shift 3
       ;;
     books)
-      check_for_updates
       shift
       course_books "$1" "$2"
       shift 2
