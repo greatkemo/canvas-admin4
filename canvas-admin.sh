@@ -4,7 +4,7 @@
 
 log() {
     if [[ -e "${HOME}/Canvas/conf/canvas.conf" ]]; then
-        CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/canvas.conf"
+        CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
         config_file="${CANVAS_ADMIN_CONF}canvas.conf"
         . "${config_file}"
     else
