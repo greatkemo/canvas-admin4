@@ -3,7 +3,9 @@
 # Functions
 
 log() {
-    if [[ -e "${config_file}" ]]; then
+    if [[ -e "${HOME}/Canvas/conf/canvas.conf" ]]; then
+        CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/canvas.conf"
+        config_file="${CANVAS_ADMIN_CONF}canvas.conf"
         . "${config_file}"
     else
         mkdir -p "${HOME}/Canvas/logs/"
@@ -147,6 +149,7 @@ generate_conf() {
     } >> "$config_file"
 
     # Load the access token and institute URL variables
+    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
     . "$config_file"
 
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
@@ -154,6 +157,7 @@ generate_conf() {
     log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
 
     # Load the access token and institute URL variables
+    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
     . "$config_file"
 
     # Validate the access token (this is a simple check, you may want to perform additional validation)
@@ -170,6 +174,7 @@ validate_setup() {
   log "info" "Validating Canvas Admin setup..."
 
   # Check if the necessary directories exist
+    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
   . "$config_file"
   if [ ! -d "${CANVAS_ADMIN_HOME}" ] || [ ! -d "${CANVAS_ADMIN_HOME}bin" ] || [ ! -d "${CANVAS_ADMIN_HOME}Downloads" ] || [ ! -d "${CANVAS_ADMIN_HOME}tmp" ] || [ ! -d "${CANVAS_ADMIN_HOME}logs" ] || [ ! -d "${CANVAS_ADMIN_HOME}conf" ]; then
     log "error" "Required directories are missing or incorrect in the Canvas Admin setup."
