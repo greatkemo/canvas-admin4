@@ -94,33 +94,43 @@ prepare_environment() {
         case "$SHELL" in
             */bash)
             # Update .bashrc or .bash_profile for bash
-            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-            echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.bashrc"
-            source "${HOME}/.bashrc"
+            if ! grep -q "${HOME}/bin" "${HOME}/.bashrc"; then
+                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+                echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.bashrc"
+                source "${HOME}/.bashrc" >/dev/null 2>&1
+            fi
             ;;
             */zsh)
             # Update .zshrc for zsh
-            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-            echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.zshrc"
-            source "${HOME}/.zshrc"
+            if ! grep -q "${HOME}/bin" "${HOME}/.zshrc"; then
+                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+                echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.zshrc"
+                source "${HOME}/.zshrc" >/dev/null 2>&1
+            fi
             ;;
             */csh)
             # Update .cshrc for csh
-            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-            echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.cshrc"
-            source "${HOME}/.cshrc"
+            if ! grep -q "${HOME}/bin" "${HOME}/.cshrc"; then
+                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+                echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.cshrc"
+                source "${HOME}/.cshrc" >/dev/null 2>&1
+            fi
             ;;
             */tcsh)
             # Update .tcshrc for tcsh
-            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-            echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.tcshrc"
-            source "${HOME}/.tcshrc"
+            if ! grep -q "${HOME}/bin" "${HOME}/.tcshrc"; then
+                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+                echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.tcshrc"
+                source "${HOME}/.tcshrc" >/dev/null 2>&1
+            fi
             ;;
             */ksh)
             # Update .kshrc for ksh
-            log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-            echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.kshrc"
-            source "${HOME}/.kshrc"
+            if ! grep -q "${HOME}/bin" "${HOME}/.kshrc"; then
+                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
+                echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.kshrc"
+                source "${HOME}/.kshrc" >/dev/null 2>&1
+            fi
             ;;
             *)
             # Handle other shells or exit with a message
