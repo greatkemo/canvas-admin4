@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Functions
 
@@ -6,7 +6,7 @@ log() {
     if [[ -e "${HOME}/Canvas/conf/canvas.conf" ]]; then
         CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
         config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-        . "${config_file}"
+        source "${config_file}"
     else
         mkdir -p "${HOME}/Canvas/logs/"
         CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
@@ -79,7 +79,7 @@ prepare_environment() {
   if [[ ":$PATH:" != *":${CANVAS_ADMIN_BIN}:"* ]]; then
     log "info" "${CANVAS_ADMIN_BIN} not found in PATH. Adding ${CANVAS_ADMIN_BIN} to PATH environment variable..."
     echo "export PATH=\$PATH:${CANVAS_ADMIN_BIN}" >> "${HOME}/.bashrc"
-    . "${HOME}/.bashrc"
+    source "${HOME}/.bashrc"
     log "info" "${CANVAS_ADMIN_BIN} added to PATH environment variable."
   fi
 
@@ -150,15 +150,15 @@ generate_conf() {
 
     # Load the access token and institute URL variables
     config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-    . "$config_file"
+    source "$config_file"
 
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
   else
-    log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
+    log "info" "canvas.conf configuration file foundsource Loading access token and other configuration variables..."
 
     # Load the access token and institute URL variables
     config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-    . "$config_file"
+    source "$config_file"
 
     # Validate the access token (this is a simple check, you may want to perform additional validation)
     if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_SCHOOL_NAME" ]; then
@@ -175,7 +175,7 @@ validate_setup() {
 
   # Check if the necessary directories exist
     config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  . "$config_file"
+  source "$config_file"
   if [ ! -d "${CANVAS_ADMIN_HOME}" ] || [ ! -d "${CANVAS_ADMIN_HOME}bin" ] || [ ! -d "${CANVAS_ADMIN_HOME}Downloads" ] || [ ! -d "${CANVAS_ADMIN_HOME}tmp" ] || [ ! -d "${CANVAS_ADMIN_HOME}logs" ] || [ ! -d "${CANVAS_ADMIN_HOME}conf" ]; then
     log "error" "Required directories are missing or incorrect in the Canvas Admin setup."
     return 1
@@ -215,7 +215,7 @@ validate_setup() {
 
 check_for_updates() {
   auto_update="$1"
-  . "$config_file"
+  source "$config_file"
   log "info" "Checking for updates to canvas-admin.sh..."
 
   # Define the URL for the remote script
@@ -257,7 +257,7 @@ check_for_updates() {
 }
 
 user_search() {
-  . "$config_file"
+  source "$config_file"
   search_pattern="$1"
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
@@ -290,7 +290,7 @@ user_search() {
 }
 
 course_configuration() {
-  . "$config_file"
+  source "$config_file"
   setting_type="$1"
   setting_value="$2"
   course_id="$3"
@@ -331,7 +331,7 @@ course_configuration() {
 }
 
 course_books() {
-  . "$config_file"
+  source "$config_file"
   book_type="$1"
   course_id="$2"
 
@@ -416,7 +416,7 @@ create_single_course() {
 }
 
 create_course() {
-  . "$config_file"
+  source "$config_file"
   csv_file="$1"
 
   if [ -n "$csv_file" ] && [ -f "$csv_file" ]; then
