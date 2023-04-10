@@ -48,7 +48,6 @@ prepare_environment() {
   mkdir -p "${HOME}/Canvas/tmp/"
   mkdir -p "${HOME}/Canvas/logs/"
   mkdir -p "${HOME}/Canvas/conf/"
-  touch "${HOME}/Canvas/conf/canvas.conf"
 
   CANVAS_ADMIN_HOME="${HOME}/Canvas/"
   CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
@@ -56,8 +55,6 @@ prepare_environment() {
   CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
   CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
   CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
-
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 
   log "info" "Directories created."
 
