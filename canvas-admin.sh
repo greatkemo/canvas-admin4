@@ -14,7 +14,6 @@ CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
 config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 
 # Functions
-
 log() {
     if [[ -e "${HOME}/Canvas/conf/canvas.conf" ]]; then
         CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
@@ -47,7 +46,7 @@ log() {
   esac
   
   log_output="[$timestamp] [$log_label] $message"
-  echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
+  sleep 0.5; echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
 }
 
 prepare_environment() {
@@ -89,17 +88,18 @@ prepare_environment() {
   fi
 
   # Check if the bin directory is in the user PATH environment variable
-    if [[ ":$PATH:" != *":${HOME}/bin:"* ]]; then
-    log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
-    
-    if [ ! -f "${HOME}/.bash_profile" ]; then
-        touch "${HOME}/.bash_profile"
+    if ! grep -q "${HOME}/bin" <<< "$PATH"; then
+        log "info" "${HOME}/bin not found in PATH. Adding ${HOME}/bin to PATH environment variable..."
+                    
+        if [ ! -f "${HOME}/.bash_profile" ]; then
+            touch "${HOME}/.bash_profile"
+        fi
+
+        echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
+        source "${HOME}/.bash_profile"
+        log "info" "${HOME}/bin added to PATH environment variable."
     fi
 
-    echo "export PATH=\${HOME}/bin:\${PATH}" >> "${HOME}/.bash_profile"
-    source "${HOME}/.bash_profile"
-    log "info" "${HOME}/bin added to PATH environment variable."
-    fi
 
   # Check if there is a bin directory in user home
   log "info" "Creating symbolic link for canvas-admin.sh..."
