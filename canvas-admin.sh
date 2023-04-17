@@ -260,6 +260,13 @@ validate_setup() {
 }
 
 check_for_updates() {
+  force_update=false
+
+  # Check if the -force option is provided
+  if [ "$1" == "-force" ]; then
+    force_update=true
+  fi
+
   source "$config_file"
   log "info" "Checking for updates to canvas-admin.sh..."
 
@@ -270,8 +277,8 @@ check_for_updates() {
   log "info" "Downloading remote script for comparison..."
   curl -s -o "${CANVAS_ADMIN_TMP}canvas-admin.sh" "$remote_script_url"
 
-  # Check if the downloaded script is different from the local script
-  if ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
+  # Check if the downloaded script is different from the local script or if force update is enabled
+  if $force_update || ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
     log "info" "A new version of canvas-admin.sh has been detected."
 
     # Prompt the user to update
@@ -300,6 +307,7 @@ check_for_updates() {
   rm -f "${CANVAS_ADMIN_TMP}canvas-admin.sh"
   log "info" "Temporary files cleaned up."
 }
+
 
 user_search() {
   validate_setup
