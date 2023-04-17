@@ -391,16 +391,24 @@ list_subaccounts() {
       --data-urlencode "page=$page" \
       --data-urlencode "recursive=true")
 
-    if [[ "$response" == "[]" ]] || [[ "$response" == "500 Internal Server Error" ]]; then
+    if [[ "$response" == "[]" ]]; then
       break
+    elif [[ "$response" == "500 Internal Server Error" ]]; then
+      log "error" "Failed to fetch subaccounts. Response: $response"
+      log "error" "Please check your API credentials and try again."
+      exit 1
+    elif [[ -z "$response" ]]; then
+      log "error" "API response is empty. Please check your API credentials and try again."
+      exit 1
+    else
+      log "info" "API response (Page $page):"
+      echo "$response"
     fi
-
-    log "info" "API response (Page $page):"
-    echo "$response"
 
     page=$((page + 1))
   done
 }
+
 
 course_configuration() {
   validate_setup
