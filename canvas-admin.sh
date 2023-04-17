@@ -408,6 +408,8 @@ list_subaccounts() {
       --data-urlencode "per_page=100" \
       --data-urlencode "page=$page")
 
+    echo "response: $response" # debug
+
     # Check if the response is a valid JSON array
     if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
       log "error" "Failed to fetch subaccounts. Response: $response"
