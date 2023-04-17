@@ -308,7 +308,6 @@ check_for_updates() {
   log "info" "Temporary files cleaned up."
 }
 
-
 user_search() {
   validate_setup
   search_pattern="$1"
@@ -392,6 +391,8 @@ list_subaccounts() {
   echo "CANVAS_ACCOUNT_ID: $CANVAS_ACCOUNT_ID" # debug
 
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
+
+  echo "api_endpoint: $api_endpoint" # debug
 
   # Initialize variables
   page=1
