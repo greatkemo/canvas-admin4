@@ -399,8 +399,8 @@ list_subaccounts() {
   subaccounts_exist=false
 
   # Perform the API request to fetch subaccounts
-  while :; do
-    log "info" "Fetching subaccounts (Page $page)..."
+
+    log "info" "Fetching subaccounts..."
     response=$( curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" )
@@ -410,24 +410,21 @@ list_subaccounts() {
     # Check if the response is a valid JSON array
     if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
       log "error" "Failed to fetch subaccounts. Response: $response"
-      break
+      exit 1
     fi
 
     # Break the loop if the response is empty
     if [ "$response" == "[]" ]; then
-      break
+      log "error" "Failed to fetch subaccounts. Response is empty."    
+      exit 1
     fi
 
     # Set the flag to indicate that subaccounts exist
     subaccounts_exist=true
 
     # Parse the response and print the subaccounts
-    log "info" "Available subaccounts (Page $page):"
+    log "info" "Available subaccounts:"
     echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
-
-    # Increment the page number
-    page=$((page + 1))
-  done
 
   if [ "$subaccounts_exist" = false ]; then
     log "info" "No subaccounts found."
