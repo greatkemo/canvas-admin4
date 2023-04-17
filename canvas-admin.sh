@@ -378,7 +378,6 @@ enroll_instructor() {
 }
 
 list_subaccounts() {
-  validate_setup
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
   page=1
 
@@ -396,8 +395,8 @@ list_subaccounts() {
       break
     fi
 
-    log "info" "Available subaccounts (Page $page):"
-    echo "$response" | jq -r '.[] | "\(.id) - \(.name)"'
+    log "info" "API response (Page $page):"
+    echo "$response"
 
     page=$((page + 1))
   done
