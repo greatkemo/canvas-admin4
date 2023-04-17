@@ -663,6 +663,8 @@ while [ "$#" -gt 0 ]; do
       shift
       if [ "$1" = "-y" ]; then
         check_for_updates "-y"
+      elif [ "$1" = "-force" ]; then
+        check_for_updates "-force"
       else
         check_for_updates
       fi
