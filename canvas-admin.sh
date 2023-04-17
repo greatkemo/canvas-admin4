@@ -454,6 +454,9 @@ create_single_course() {
   # Extract the course ID from the response
   course_id=$(echo "$response" | jq '.id')
 
+  # Add logging for the raw API response
+  log "info" "Raw API response: $response"
+
   log "info" "Course successfully created with ID: $course_id"
 
   # Apply course_configuration -all function on the newly created course
