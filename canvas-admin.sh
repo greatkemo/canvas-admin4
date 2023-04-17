@@ -433,9 +433,14 @@ create_single_course() {
   course_name="$1"
   course_code="$2"
   term_id="$3"
+  sub_account_id="$4"
 
   # Define the API endpoint for creating courses
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/courses"
+  if [ -n "$sub_account_id" ]; then
+    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$sub_account_id/courses"
+  else
+    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/courses"
+  fi
 
   # Define the API request data
   api_data="{\"course\": {\"name\": \"$course_name\", \"course_code\": \"$course_code\""
@@ -451,11 +456,11 @@ create_single_course() {
     -H "Content-Type: application/json" \
     -d "$api_data")
 
+  # Log the API response
+  log "info" "API response: $response"
+
   # Extract the course ID from the response
   course_id=$(echo "$response" | jq '.id')
-
-  # Add logging for the raw API response
-  log "info" "Raw API response: $response"
 
   log "info" "Course successfully created with ID: $course_id"
 
@@ -463,25 +468,28 @@ create_single_course() {
   course_configuration "-all" "$CANVAS_DEFAULT_TIMEZONE" "$course_id"
 }
 
+
+
 create_course() {
   validate_setup
   csv_file="$1"
 
   if [ -n "$csv_file" ] && [ -f "$csv_file" ]; then
     first_line=1
-    while IFS=, read -r course_name course_code term_id; do
+    while IFS=, read -r course_name course_code term_id sub_account_id; do
       if [ $first_line -eq 1 ]; then
         first_line=0
         continue
       fi
-      create_single_course "$course_name" "$course_code" "$term_id"
+      create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id"
     done < "$csv_file"
   else
     read -rp "Enter the course name: " course_name
     read -rp "Enter the course code: " course_code
     read -rp "Enter the term ID (optional): " term_id
+    read -rp "Enter the sub-account ID (optional): " sub_account_id
 
-    create_single_course "$course_name" "$course_code" "$term_id"
+    create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id"
   fi
 }
 
