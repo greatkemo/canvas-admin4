@@ -378,32 +378,48 @@ enroll_instructor() {
 }
 
 list_subaccounts() {
-  validate_setup
+  # Define the API endpoint for fetching subaccounts
+  source "$config_file"
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
-  log "info" "Fetching subaccounts (Page $page)..."
 
-  echo "curl -s -X GET \"$api_endpoint\" \
-    -H \"Authorization: Bearer $CANVAS_ACCESS_TOKEN\" \
-    -H \"Content-Type: application/json\""
+  # Initialize variables
+  page=1
+  subaccounts_exist=false
 
-  response=$(curl -s -X GET "$api_endpoint" \
-    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-    -H "Content-Type: application/json")
+  # Perform the API request to fetch subaccounts
+  while :; do
+    log "info" "Fetching subaccounts (Page $page)..."
+    response=$(curl -s -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-urlencode "recursive=true" \
+      --data-urlencode "per_page=100" \
+      --data-urlencode "page=$page")
 
-  if [[ "$response" == "[]" ]]; then
-    log "error" "Failed to fetch subaccounts. Response is empty."
-    log "error" "Please check your API credentials and try again."
-    exit 1
-  elif [[ "$response" == "500 Internal Server Error" ]]; then
-    log "error" "Failed to fetch subaccounts. Response: $response"
-    log "error" "Please check your API credentials and try again."
-    exit 1
-  elif [[ -z "$response" ]]; then
-    log "error" "API response is empty. Please check your API credentials and try again."
-    exit 1
-  else
-    log "info" "API response:"
-    echo "$response"
+    # Check if the response is a valid JSON array
+    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
+      log "error" "Failed to fetch subaccounts. Response: $response"
+      break
+    fi
+
+    # Break the loop if the response is empty
+    if [ "$response" == "[]" ]; then
+      break
+    fi
+
+    # Set the flag to indicate that subaccounts exist
+    subaccounts_exist=true
+
+    # Parse the response and print the subaccounts
+    log "info" "Available subaccounts (Page $page):"
+    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
+
+    # Increment the page number
+    page=$((page + 1))
+  done
+
+  if [ "$subaccounts_exist" = false ]; then
+    log "info" "No subaccounts found."
   fi
 }
 
