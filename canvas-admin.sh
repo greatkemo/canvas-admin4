@@ -409,7 +409,6 @@ list_subaccounts() {
   done
 }
 
-
 course_configuration() {
   validate_setup
   setting_type="$1"
@@ -630,11 +629,11 @@ fi
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    help)
-      usage
+    help) # show the usage message
+      usage 
       exit 0
       ;;
-    update)
+    update) # check for updates
       shift
       if [ "$1" = "-y" ]; then
         check_for_updates "-y"
@@ -643,12 +642,12 @@ while [ "$#" -gt 0 ]; do
       fi
       exit 0
       ;;
-    user)
+    user) # search for users
       shift
       user_search "$1"
       shift
       ;;
-    createcourse)
+    createcourse) # create a new course
       shift
       if [ -n "$1" ] && [ -f "$1" ]; then
         create_course "$1"
@@ -657,21 +656,21 @@ while [ "$#" -gt 0 ]; do
         create_course
       fi
       ;;
-    courseconfig)
+    courseconfig) # apply course configuration
       shift
       course_configuration "$1" "$2" "$3"
       shift 3
       ;;
-    books)
+    books) # add course books
       shift
       course_books "$1" "$2"
       shift 2
       ;;
-    listsubaccounts)
-      list_subaccounts # lists all subaccounts in the Canvas instance
+    listsubaccounts) # lists all subaccounts in the Canvas instance
+      list_subaccounts 
       exit 0
       ;;
-    *)
+    *) # unknown option
       log "error" "Unknown option: $1. Please try again."
       usage
       exit 1
