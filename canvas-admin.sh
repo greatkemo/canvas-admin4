@@ -334,6 +334,48 @@ user_search() {
   log "info" "User search results saved to: $output_file"
 }
 
+get_user_id() {
+  search_pattern="$1"
+
+  # Define the API endpoint for searching users
+  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
+
+  # Perform the API request to search for users
+  response=$(curl -s -X GET "$api_endpoint" \
+    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -G --data-urlencode "search_term=$search_pattern" \
+    --data-urlencode "include[]=email" \
+    --data-urlencode "include[]=enrollments")
+
+  # Extract the user_id from the response
+  user_id=$(echo "$response" | jq '.[0].id')
+
+  echo "$user_id"
+}
+
+list_subaccounts() {
+  # Define the API endpoint for fetching subaccounts
+  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
+
+  # Perform the API request to fetch subaccounts
+  response=$(curl -s -X GET "$api_endpoint" \
+    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    --data-urlencode "recursive=true" \
+    --data-urlencode "per_page=100")
+
+  # Check if the response is empty
+  if [ -z "$response" ] || [ "$response" == "[]" ]; then
+    log "info" "No subaccounts found."
+    return
+  fi
+
+  # Parse the response and print the subaccounts
+  log "info" "Available subaccounts:"
+  echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
+}
+
 course_configuration() {
   validate_setup
   setting_type="$1"
@@ -434,13 +476,10 @@ create_single_course() {
   course_code="$2"
   term_id="$3"
   sub_account_id="$4"
+  instructor_id="$5"
 
   # Define the API endpoint for creating courses
-  if [ -n "$sub_account_id" ]; then
-    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$sub_account_id/courses"
-  else
-    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/courses"
-  fi
+  api_endpoint="$CANVAS_INSTITUE_URL/accounts/${sub_account_id:-$CANVAS_ACCOUNT_ID}/courses"
 
   # Define the API request data
   api_data="{\"course\": {\"name\": \"$course_name\", \"course_code\": \"$course_code\""
@@ -456,19 +495,19 @@ create_single_course() {
     -H "Content-Type: application/json" \
     -d "$api_data")
 
-  # Log the API response
-  log "info" "API response: $response"
-
   # Extract the course ID from the response
   course_id=$(echo "$response" | jq '.id')
 
   log "info" "Course successfully created with ID: $course_id"
 
+  # Enroll the instructor in the course, if an instructor ID is provided
+  if [ -n "$instructor_id" ]; then
+    enroll_instructor_to_course "$course_id" "$instructor_id"
+  fi
+
   # Apply course_configuration -all function on the newly created course
   course_configuration "-all" "$CANVAS_DEFAULT_TIMEZONE" "$course_id"
 }
-
-
 
 create_course() {
   validate_setup
@@ -476,20 +515,30 @@ create_course() {
 
   if [ -n "$csv_file" ] && [ -f "$csv_file" ]; then
     first_line=1
-    while IFS=, read -r course_name course_code term_id sub_account_id; do
+    while IFS=, read -r course_name course_code term_id; do
       if [ $first_line -eq 1 ]; then
         first_line=0
         continue
       fi
-      create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id"
+      create_single_course "$course_name" "$course_code" "$term_id"
     done < "$csv_file"
   else
     read -rp "Enter the course name: " course_name
     read -rp "Enter the course code: " course_code
     read -rp "Enter the term ID (optional): " term_id
+    list_subaccounts
     read -rp "Enter the sub-account ID (optional): " sub_account_id
+    read -rp "Enter the instructor's name or email (optional): " instructor_query
 
-    create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id"
+    if [ -n "$instructor_query" ]; then
+      instructor_id=$(get_user_id "$instructor_query")
+      if [ -z "$instructor_id" ]; then
+        log "error" "No user found with the given search query."
+        exit 1
+      fi
+    fi
+
+    create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id" "$instructor_id"
   fi
 }
 
