@@ -403,8 +403,7 @@ list_subaccounts() {
     log "info" "Fetching subaccounts (Page $page)..."
     response=$( curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-urlencode "recursive=true" )
+      -H "Content-Type: application/json" )
 
     echo "response: $response" # debug
 
