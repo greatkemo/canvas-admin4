@@ -660,7 +660,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     listsubaccounts)
-      list_subaccounts
+      list_subaccounts # lists all subaccounts in the Canvas instance
       exit 0
       ;;
     *)
