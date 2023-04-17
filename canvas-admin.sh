@@ -378,47 +378,29 @@ enroll_instructor() {
 }
 
 list_subaccounts() {
-  # Define the API endpoint for fetching subaccounts
+  validate_setup
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
-
-  # Initialize variables
   page=1
-  subaccounts_exist=false
 
-  # Perform the API request to fetch subaccounts
-  while :; do
+  while true; do
+    log "info" "Fetching subaccounts (Page $page)..."
+
     response=$(curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
       --data-urlencode "per_page=100" \
-      --data-urlencode "page=$page")
+      --data-urlencode "page=$page" \
+      --data-urlencode "recursive=true")
 
-
-    # Check if the response is a valid JSON array
-    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
-      log "error" "Failed to fetch subaccounts. Response: $response"
+    if [[ "$response" == "[]" ]] || [[ "$response" == "500 Internal Server Error" ]]; then
       break
     fi
 
-    # Break the loop if the response is empty
-    if [ "$response" == "[]" ]; then
-      break
-    fi
-
-    # Set the flag to indicate that subaccounts exist
-    subaccounts_exist=true
-
-    # Parse the response and print the subaccounts
     log "info" "Available subaccounts (Page $page):"
-    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
+    echo "$response" | jq -r '.[] | "\(.id) - \(.name)"'
 
-    # Increment the page number
     page=$((page + 1))
   done
-
-  if [ "$subaccounts_exist" = false ]; then
-    log "info" "No subaccounts found."
-  fi
 }
 
 course_configuration() {
