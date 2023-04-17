@@ -387,15 +387,9 @@ enroll_instructor() {
 list_subaccounts() {
   # Define the API endpoint for fetching subaccounts
   source "$config_file"
-  echo "CANVAS_INSTITUE_URL: $CANVAS_INSTITUE_URL" # debug
-  echo "CANVAS_ACCOUNT_ID: $CANVAS_ACCOUNT_ID" # debug
-
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
 
-  echo "api_endpoint: $api_endpoint" # debug
-
   # Initialize variables
-  page=1
   subaccounts_exist=false
 
   # Perform the API request to fetch subaccounts
@@ -404,16 +398,14 @@ list_subaccounts() {
     response=$( curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" )
-
-    echo "response: $response" # debug
-
+   
     # Check if the response is a valid JSON array
     if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
       log "error" "Failed to fetch subaccounts. Response: $response"
       exit 1
     fi
 
-    # Break the loop if the response is empty
+    # Error and Exit if the response is empty
     if [ "$response" == "[]" ]; then
       log "error" "Failed to fetch subaccounts. Response is empty."    
       exit 1
@@ -423,7 +415,7 @@ list_subaccounts() {
     subaccounts_exist=true
 
     # Parse the response and print the subaccounts
-    log "info" "Available subaccounts:"
+    log "info" "Available subaccounts: (use the ID number to set the subaccount)"
     echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
 
   if [ "$subaccounts_exist" = false ]; then
