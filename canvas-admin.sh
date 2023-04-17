@@ -378,6 +378,7 @@ enroll_instructor() {
 }
 
 list_subaccounts() {
+  validate_setup
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
   log "info" "Fetching subaccounts (Page $page)..."
 
