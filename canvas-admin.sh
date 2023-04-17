@@ -401,12 +401,10 @@ list_subaccounts() {
   # Perform the API request to fetch subaccounts
   while :; do
     log "info" "Fetching subaccounts (Page $page)..."
-    response=$(curl -s -X GET "$api_endpoint" \
+    response=$( curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
-      --data-urlencode "recursive=true" \
-      --data-urlencode "per_page=100" \
-      --data-urlencode "page=$page")
+      --data-urlencode "recursive=true" )
 
     echo "response: $response" # debug
 
