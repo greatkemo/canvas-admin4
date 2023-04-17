@@ -381,10 +381,13 @@ list_subaccounts() {
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
   log "info" "Fetching subaccounts (Page $page)..."
 
+  echo "curl -s -X GET \"$api_endpoint\" \
+    -H \"Authorization: Bearer $CANVAS_ACCESS_TOKEN\" \
+    -H \"Content-Type: application/json\""
+
   response=$(curl -s -X GET "$api_endpoint" \
     -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-    -H "Content-Type: application/json" \
-    --data-urlencode "recursive=true")
+    -H "Content-Type: application/json")
 
   if [[ "$response" == "[]" ]]; then
     log "error" "Failed to fetch subaccounts. Response is empty."
