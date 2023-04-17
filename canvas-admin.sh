@@ -390,9 +390,9 @@ list_subaccounts() {
     response=$(curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
-      --data-urlencode "recursive=true" \
       --data-urlencode "per_page=100" \
       --data-urlencode "page=$page")
+
 
     # Check if the response is a valid JSON array
     if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
@@ -677,6 +677,10 @@ while [ "$#" -gt 0 ]; do
       shift
       course_books "$1" "$2"
       shift 2
+      ;;
+    listsubaccounts)
+      list_subaccounts
+      exit 0
       ;;
     *)
       log "error" "Unknown option: $1. Please try again."
