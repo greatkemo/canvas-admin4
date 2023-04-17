@@ -379,34 +379,28 @@ enroll_instructor() {
 
 list_subaccounts() {
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
-  page=1
+  log "info" "Fetching subaccounts (Page $page)..."
 
-  while true; do
-    log "info" "Fetching subaccounts (Page $page)..."
+  response=$(curl -s -X GET "$api_endpoint" \
+    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    --data-urlencode "recursive=true")
 
-    response=$(curl -s -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-urlencode "per_page=100" \
-      --data-urlencode "page=$page" \
-      --data-urlencode "recursive=true")
-
-    if [[ "$response" == "[]" ]]; then
-      break
-    elif [[ "$response" == "500 Internal Server Error" ]]; then
-      log "error" "Failed to fetch subaccounts. Response: $response"
-      log "error" "Please check your API credentials and try again."
-      exit 1
-    elif [[ -z "$response" ]]; then
-      log "error" "API response is empty. Please check your API credentials and try again."
-      exit 1
-    else
-      log "info" "API response (Page $page):"
-      echo "$response"
-    fi
-
-    page=$((page + 1))
-  done
+  if [[ "$response" == "[]" ]]; then
+    log "error" "Failed to fetch subaccounts. Response is empty."
+    log "error" "Please check your API credentials and try again."
+    exit 1
+  elif [[ "$response" == "500 Internal Server Error" ]]; then
+    log "error" "Failed to fetch subaccounts. Response: $response"
+    log "error" "Please check your API credentials and try again."
+    exit 1
+  elif [[ -z "$response" ]]; then
+    log "error" "API response is empty. Please check your API credentials and try again."
+    exit 1
+  else
+    log "info" "API response:"
+    echo "$response"
+  fi
 }
 
 course_configuration() {
