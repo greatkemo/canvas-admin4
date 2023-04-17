@@ -380,8 +380,8 @@ enroll_instructor() {
 list_subaccounts() {
   # Define the API endpoint for fetching subaccounts
   source "$config_file"
-  echo "CANVAS_INSTITUE_URL: $CANVAS_INSTITUE_URL"
-  echo "CANVAS_ACCOUNT_ID: $CANVAS_ACCOUNT_ID"
+  echo "CANVAS_INSTITUE_URL: $CANVAS_INSTITUE_URL" # debug
+  echo "CANVAS_ACCOUNT_ID: $CANVAS_ACCOUNT_ID" # debug
 
   api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
 
