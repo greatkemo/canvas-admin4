@@ -158,6 +158,7 @@ prepare_environment() {
 get_canvas_root_account_id() {
   # Define the API endpoint for fetching the root account
   source "$config_file"
+  log "info" "Fetching the root account ID..." 
   api_endpoint="$CANVAS_INSTITUE_URL/accounts"
 
   # Perform the API request to fetch the root account
@@ -165,7 +166,7 @@ get_canvas_root_account_id() {
     -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
     -H "Content-Type: application/json" \
     --data-urlencode "per_page=1")
-
+  
   # Check if the response is a valid JSON array
   if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
     log "error" "Failed to fetch the root account. Response: $response"
@@ -176,7 +177,7 @@ get_canvas_root_account_id() {
   root_account_id=$(echo "$response" | jq '.[0].id')
 
   # Return the root account ID
-  echo "$root_account_id"
+  log "info" "The dectected root account ID is ($root_account_id)."
 }
 
 list_subaccounts() {
@@ -241,8 +242,8 @@ generate_conf() {
     source "$config_file"
 
     # Get the Canvas root account ID
-    CANVAS_ROOT_ACCOUTN_ID=$(get_canvas_root_account_id)
-
+    get_canvas_root_account_id && CANVAS_ROOT_ACCOUTN_ID=$root_account_id
+    
     # List the sub-accounts and prompt the user to select one
     echo "Fetching and listing available sub-accounts..."
     CANVAS_ACCOUNT_ID="$CANVAS_ROOT_ACCOUTN_ID"
