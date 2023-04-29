@@ -519,30 +519,30 @@ course_books() {
 }
 
 get_term_id() {
-  local term_name="$1"
+  local term_query="$1"
+  local api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/terms"
+  local response
 
-  terms=$(curl -s -X GET "$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/terms" \
+  response=$(curl -s -X GET "$api_endpoint" \
     -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
     -H "Content-Type: application/json")
 
-  matching_terms=$(echo "$terms" | jq -r --arg term_name "$term_name" '.enrollment_terms[] | select(.name | test($term_name; "i"))')
-
-  # If no matching terms are found, exit with an error
-  if [ -z "$matching_terms" ]; then
-    log "error" "No term found with the given name."
-    exit 1
+  if ! echo "$response" | jq 'if type=="array" or type=="null" then true else false end' -e >/dev/null; then
+    log "error" "Failed to fetch terms. Response: $response"
+    return 1
   fi
 
-  # If there's only one matching term, return its ID
-  if [ "$(echo "$matching_terms" | wc -l)" -eq 1 ]; then
-    term_id=$(echo "$matching_terms" | jq -r '.id')
-  else
-    # If multiple matching terms are found, display them and ask the user to choose one
-    log "info" "Multiple terms found matching the given name:"
-    echo "$matching_terms" | jq -r '. | "ID: \(.id) | Name: \(.name)"'
+  if [ "$(echo "$response" | jq '. | length')" -eq 0 ]; then
+    log "error" "No terms found."
+    return 1
+  fi
 
-    read -rp "Enter the ID of the term you want to use: " selected_term_id
-    term_id="$selected_term_id"
+  local term_id
+  term_id=$(echo "$response" | jq -r --arg term_query "$term_query" '.[] | select(.name | test($term_query; "i")) | .id')
+
+  if [ -z "$term_id" ]; then
+    log "error" "No term found with the given search query."
+    return 1
   fi
 
   echo "$term_id"
@@ -597,7 +597,7 @@ create_course() {
         first_line=0
         continue
       fi
-      create_single_course "$course_name" "$course_code" "$term_id"
+      create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id" "$instructor_id"
     done < "$csv_file"
   else
     read -rp "Enter the course name: " course_name
@@ -617,7 +617,6 @@ create_course() {
     list_subaccounts
     read -rp "Enter the sub-account ID (optional): " sub_account_id
     read -rp "Enter the instructor's name or email (optional): " instructor_query
-
     if [ -n "$instructor_query" ]; then
       instructor_id=$(get_user_id "$instructor_query")
       if [ -z "$instructor_id" ]; then
@@ -625,7 +624,6 @@ create_course() {
         exit 1
       fi
     fi
-
     create_single_course "$course_name" "$course_code" "$term_id" "$sub_account_id" "$instructor_id"
   fi
 }
