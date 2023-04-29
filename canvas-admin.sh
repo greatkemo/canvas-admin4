@@ -518,6 +518,36 @@ course_books() {
   log "info" "Successfully added '$book_title' link to the 'Online Textbooks' module in course ID: $course_id"
 }
 
+get_term_id() {
+  local term_name="$1"
+
+  terms=$(curl -s -X GET "$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/terms" \
+    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+    -H "Content-Type: application/json")
+
+  matching_terms=$(echo "$terms" | jq -r --arg term_name "$term_name" '.enrollment_terms[] | select(.name | test($term_name; "i"))')
+
+  # If no matching terms are found, exit with an error
+  if [ -z "$matching_terms" ]; then
+    log "error" "No term found with the given name."
+    exit 1
+  fi
+
+  # If there's only one matching term, return its ID
+  if [ "$(echo "$matching_terms" | wc -l)" -eq 1 ]; then
+    term_id=$(echo "$matching_terms" | jq -r '.id')
+  else
+    # If multiple matching terms are found, display them and ask the user to choose one
+    log "info" "Multiple terms found matching the given name:"
+    echo "$matching_terms" | jq -r '. | "ID: \(.id) | Name: \(.name)"'
+
+    read -rp "Enter the ID of the term you want to use: " selected_term_id
+    term_id="$selected_term_id"
+  fi
+
+  echo "$term_id"
+}
+
 create_single_course() {
   course_name="$1"
   course_code="$2"
@@ -572,7 +602,18 @@ create_course() {
   else
     read -rp "Enter the course name: " course_name
     read -rp "Enter the course code: " course_code
-    read -rp "Enter the term ID (optional): " term_id
+    # Search for the term by name if the term_id is not provided
+    read -rp "Enter the term name or partial name (optional): " term_query
+    if [ -n "$term_query" ]; then
+      term_id=$(get_term_id "$term_query")
+        if [ -z "$term_id" ]; then
+          log "error" "No term found with the given search query."
+          exit 1
+        fi
+    else
+      term_id=""
+    fi
+
     list_subaccounts
     read -rp "Enter the sub-account ID (optional): " sub_account_id
     read -rp "Enter the instructor's name or email (optional): " instructor_query
