@@ -155,31 +155,6 @@ prepare_environment() {
   log "info" "Environment prepared."
 }
 
-get_canvas_root_account_id() {
-  # Define the API endpoint for fetching the root account
-  source "$config_file"
-  log "info" "Fetching the root account ID..." 
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts"
-
-  # Perform the API request to fetch the root account
-  response=$(curl -s -X GET "$api_endpoint" \
-    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-    -H "Content-Type: application/json" \
-    --data-urlencode "per_page=1")
-  
-  # Check if the response is a valid JSON array
-  if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
-    log "error" "Failed to fetch the root account. Response: $response"
-    exit 1
-  fi
-
-  # Extract the root account ID from the response
-  root_account_id=$(echo "$response" | jq '.[0].id')
-
-  # Return the root account ID
-  log "info" "The dectected root account ID is ($root_account_id)."
-}
-
 list_subaccounts() {
   # Define the API endpoint for fetching subaccounts
   source "$config_file"
@@ -240,14 +215,31 @@ generate_conf() {
     echo "CANVAS_INSTITUE_URL=\"https://$entered_url/api/v1\"" >> "$config_file"
     # Load the access token and institute URL variables
     source "$config_file"
+    log "info" "Fetching the root account ID..." 
+    api_endpoint="$CANVAS_INSTITUE_URL/accounts"
+
+    # Perform the API request to fetch the root account
+    response=$(curl -s -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-urlencode "per_page=1")
+    
+    # Check if the response is a valid JSON array
+    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
+      log "error" "Failed to fetch the root account. Response: $response"
+      exit 1
+    fi
+
+    # Extract the root account ID from the response
+    root_account_id=$(echo "$response" | jq '.[0].id')
 
     # Get the Canvas root account ID
-    if ! get_canvas_root_account_id; then
+    if [ "$root_account_id" == "" ]; then
       log "error" "Failed to fetch the root account ID."
       exit 1
     else
       log "info" "The root account ID is ($root_account_id)."
-      echo "CANVAS_ROOT_ACCOUTN_ID=$root_account_id" >> "$config_file"
+      echo "CANVAS_ROOT_ACCOUTN_ID=\"$root_account_id\"" >> "$config_file"
     fi
     
     # List the sub-accounts and prompt the user to select one
@@ -308,7 +300,6 @@ generate_conf() {
 
     # Save the access token, institute URL, account ID, school name, and timezone in the configuration file
     {
-        echo "CANVAS_ACCOUNT_ID=\"$entered_account_id\""
         echo "CANVAS_INSTITUTE_LONG_NAME=\"$entered_institute_long_name\""
         echo "CANVAS_INSTITUTE_SHORT_NAME=\"$entered_institute_short_name\""
         echo "CANVAS_DEFAULT_TIMEZONE=\"$entered_time_zone\""
