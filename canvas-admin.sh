@@ -242,7 +242,13 @@ generate_conf() {
     source "$config_file"
 
     # Get the Canvas root account ID
-    get_canvas_root_account_id && CANVAS_ROOT_ACCOUTN_ID=$root_account_id
+    if ! get_canvas_root_account_id; then
+      log "error" "Failed to fetch the root account ID."
+      exit 1
+    else
+      log "info" "The root account ID is ($root_account_id)."
+      echo "CANVAS_ROOT_ACCOUTN_ID=$root_account_id" >> "$config_file"
+    fi
     
     # List the sub-accounts and prompt the user to select one
     echo "Fetching and listing available sub-accounts..."
