@@ -155,6 +155,69 @@ prepare_environment() {
   log "info" "Environment prepared."
 }
 
+get_canvas_root_account_id() {
+  # Define the API endpoint for fetching the root account
+  source "$config_file"
+  api_endpoint="$CANVAS_INSTITUE_URL/accounts"
+
+  # Perform the API request to fetch the root account
+  response=$(curl -s -X GET "$api_endpoint" \
+    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    --data-urlencode "per_page=1")
+
+  # Check if the response is a valid JSON array
+  if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
+    log "error" "Failed to fetch the root account. Response: $response"
+    exit 1
+  fi
+
+  # Extract the root account ID from the response
+  root_account_id=$(echo "$response" | jq '.[0].id')
+
+  # Return the root account ID
+  echo "$root_account_id"
+}
+
+list_subaccounts() {
+  # Define the API endpoint for fetching subaccounts
+  source "$config_file"
+  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
+
+  # Initialize variables
+  subaccounts_exist=false
+
+  # Perform the API request to fetch subaccounts
+
+    log "info" "Fetching subaccounts..."
+    response=$( curl -s -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" )
+   
+    # Check if the response is a valid JSON array
+    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
+      log "error" "Failed to fetch subaccounts. Response: $response"
+      exit 1
+    fi
+
+    # Error and Exit if the response is empty
+    if [ "$response" == "[]" ]; then
+      log "error" "Failed to fetch subaccounts. Response is empty."    
+      exit 1
+    fi
+
+    # Set the flag to indicate that subaccounts exist
+    subaccounts_exist=true
+
+    # Parse the response and print the subaccounts
+    log "info" "Available subaccounts: (use the ID number to set the subaccount)"
+    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
+
+  if [ "$subaccounts_exist" = false ]; then
+    log "info" "No subaccounts found."
+  fi
+}
+
 generate_conf() {
   log "info" "Checking Canvas API access token..."
 
@@ -168,27 +231,79 @@ generate_conf() {
     log "info" "Please follow the instructions to generate an API Access Token:"
     log "info" "https://canvas.instructure.com/doc/api/file.oauth.html#manual-token-generation"
     read -rp "Enter your Canvas API Access Token: " entered_token
+    log "info" "Please enter your Canvas Institute URL e.g. canvas.school.edu or school.instructure.com"
     read -rp "Enter your Canvas Institute URL: " entered_url
-    read -rp "Enter your Canvas Account ID: " entered_account_id
-    read -rp "Enter your Canvas School Name: " entered_school_name
+
+    # Save the access token and institute URL in the configuration file
+    echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
+    echo "CANVAS_INSTITUE_URL=\"https://$entered_url/api/v1\"" >> "$config_file"
+    # Load the access token and institute URL variables
+    source "$config_file"
+
+    # Get the Canvas root account ID
+    CANVAS_ROOT_ACCOUTN_ID=$(get_canvas_root_account_id)
+
+    # List the sub-accounts and prompt the user to select one
+    echo "Fetching and listing available sub-accounts..."
+    CANVAS_ACCOUNT_ID="$CANVAS_ROOT_ACCOUTN_ID"
+    list_subaccounts
+    read -rp "Enter your Canvas Account ID or leave it blank to use the root account ID ($CANVAS_ROOT_ACCOUTN_ID): " entered_account_id
+
+    if [ -z "$entered_account_id" ]; then
+      entered_account_id="$CANVAS_ROOT_ACCOUTN_ID"
+    fi
+    
+    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID"
+
+    response=$(curl -s -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+      -H "Content-Type: application/json")
+
+    detected_institution_name=$(echo "$response" | jq -r '.name')
+    default_time_zone=$(echo "$response" | jq -r '.default_time_zone')
+
+    log "info" "Detecting the name of you institute..."
+    read -rp "Detected istitute name is ($detected_institution_name). Press Enter to accept, or type a different name: " entered_institute_long_name
+    if [ -z "$entered_institute_long_name" ]; then
+      entered_institute_long_name="$detected_institution_name"
+    fi
+
+    log "info" "Detecting the abbreviation of your institute name..."
+    log "info" "This abbreviation is used for integration with other services such as Zoom, Box, Redshelf etc."
+    detected_institute_short_name=$(echo "$entered_institute_long_name" | awk -F' ' '{ for (i=1; i<=NF; ++i) printf substr($i, 1, 1) }' | tr '[:upper:]' '[:lower:]')
+    read -rp "Detected istitute abbreviation is ($detected_institute_short_name). Press Enter to accept, or type a different abbreviation: " entered_institute_short_name
+    if [ -z "$entered_institute_short_name" ]; then
+      entered_institute_short_name="$detected_institute_short_name"
+    fi
 
     # Get the user's location and timezone based on their IP address
-    log "info" "Detecting your timezone based on your IP address..."
+    log "info" "Detecting institue default timezone based on Canvas account..."
+    log "info" "This timezone is used for scheduling courses and other events."
+    log "info" "Your institutes detected timezone is ($default_time_zone)."
+    log "info" "Detecting user timezone based on your IP address..."
     location_info=$(curl -s "http://ip-api.com/json")
-    detected_timezone=$(echo "$location_info" | jq -r '.timezone')
-
-    # Prompt the user to confirm or modify the timezone
-    read -rp "Detected Time Zone is $detected_timezone. Press Enter to accept, or type a new timezone: " entered_time_zone
-    if [ -z "$entered_time_zone" ]; then
-      entered_time_zone="$detected_timezone"
+    user_time_zone=$(echo "$location_info" | jq -r '.timezone')
+    # if the default_time_zone and user_time_zone are the same, inform the user and prompt to confirm or modify, otherwise if the are different, inform user, and prompt to select or modify the timezone
+    # if the user selects a different timezone, prompt to confirm or modify
+    if [ "$default_time_zone" == "$user_time_zone" ]; then
+      read -rp "Your detected timezone is ($user_time_zone). Press Enter to accept, or type a different timezone: " entered_time_zone
+      if [ -z "$entered_time_zone" ]; then
+        entered_time_zone="$user_time_zone"
+      fi
+    else
+      log "info" "Your institutes default timezone is ($default_time_zone)."
+      log "info" "Your actual timezone is ($user_time_zone)."
+      read -rp "Press Enter to accept your institutes default timezone, or type a different timezone: " entered_time_zone
+      if [ -z "$entered_time_zone" ]; then
+        entered_time_zone="$default_time_zone"
+      fi
     fi
 
     # Save the access token, institute URL, account ID, school name, and timezone in the configuration file
-    echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
     {
-        echo "CANVAS_INSTITUE_URL=\"$entered_url\""
         echo "CANVAS_ACCOUNT_ID=\"$entered_account_id\""
-        echo "CANVAS_SCHOOL_NAME=\"$entered_school_name\""
+        echo "CANVAS_INSTITUTE_LONG_NAME=\"$entered_institute_long_name\""
+        echo "CANVAS_INSTITUTE_SHORT_NAME=\"$entered_institute_short_name\""
         echo "CANVAS_DEFAULT_TIMEZONE=\"$entered_time_zone\""
         echo "CANVAS_ADMIN_HOME=\"${HOME}/Canvas/\""
         echo "CANVAS_ADMIN_CONF=\"${HOME}/Canvas/conf/\""
@@ -197,19 +312,16 @@ generate_conf() {
         echo "CANVAS_ADMIN_TMP=\"${HOME}/Canvas/tmp/\""
         echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
     } >> "$config_file"
-
-    # Load the access token and institute URL variables
-    source "$config_file"
-
+    
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
   else
-    log "info" "canvas.conf configuration file foundsource Loading access token and other configuration variables..."
+    log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
 
     # Load the access token and institute URL variables
     source "$config_file"
 
     # Validate the access token (this is a simple check, you may want to perform additional validation)
-    if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_SCHOOL_NAME" ]; then
+        if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_INSTITUTE_LONG_NAME" ] || [ -z "$CANVAS_DEFAULT_TIMEZONE" ]; then
       log "error" "The Canvas API Access Token, Institute URL, Account ID, or School Name is not set in the configuration file."
       exit 1
     else
@@ -246,7 +358,7 @@ validate_setup() {
     log "info" "Configuration file (canvas.conf) found and validated."
   fi
 
-  if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_SCHOOL_NAME" ] || [ -z "$CANVAS_ADMIN_HOME" ] || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] || [ -z "$CANVAS_ADMIN_BIN" ]; then
+  if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_INSTITUTE_LONG_NAME" ] || [ -z "$CANVAS_ADMIN_HOME" ] || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] || [ -z "$CANVAS_ADMIN_BIN" ]; then
     log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
     return 1
   else
@@ -384,45 +496,6 @@ enroll_instructor() {
   log "info" "Instructor (ID: $instructor_id) successfully enrolled in course (ID: $course_id)"
 }
 
-list_subaccounts() {
-  # Define the API endpoint for fetching subaccounts
-  source "$config_file"
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
-
-  # Initialize variables
-  subaccounts_exist=false
-
-  # Perform the API request to fetch subaccounts
-
-    log "info" "Fetching subaccounts..."
-    response=$( curl -s -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" )
-   
-    # Check if the response is a valid JSON array
-    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
-      log "error" "Failed to fetch subaccounts. Response: $response"
-      exit 1
-    fi
-
-    # Error and Exit if the response is empty
-    if [ "$response" == "[]" ]; then
-      log "error" "Failed to fetch subaccounts. Response is empty."    
-      exit 1
-    fi
-
-    # Set the flag to indicate that subaccounts exist
-    subaccounts_exist=true
-
-    # Parse the response and print the subaccounts
-    log "info" "Available subaccounts: (use the ID number to set the subaccount)"
-    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
-
-  if [ "$subaccounts_exist" = false ]; then
-    log "info" "No subaccounts found."
-  fi
-}
-
 course_configuration() {
   validate_setup
   setting_type="$1"
@@ -490,7 +563,7 @@ course_books() {
   case "$book_type" in
     -redshelf)
       book_title="RedShelf Inclusive"
-      book_url="https://${CANVAS_SCHOOL_NAME}.redshelf.com/lti/my_courses/"
+      book_url="https://${CANVAS_INSTITUTE_SHORT_NAME}.redshelf.com/lti/my_courses/"
       ;;
     -vitalsource)
       book_title="VitalSource Course Materials"
