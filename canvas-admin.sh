@@ -236,15 +236,50 @@ generate_conf() {
     fi
     
     # List the sub-accounts and prompt the user to select one
+    source "$config_file"
     echo "Fetching and listing available sub-accounts..."
-    CANVAS_ACCOUNT_ID="$CANVAS_ROOT_ACCOUTN_ID"
-    list_subaccounts
-    read -rp "Enter your Canvas Account ID or leave it blank to use the root account ID ($CANVAS_ROOT_ACCOUTN_ID): " entered_account_id
+    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ROOT_ACCOUTN_ID/sub_accounts"
 
-    if [ -z "$entered_account_id" ]; then
-      entered_account_id="$CANVAS_ROOT_ACCOUTN_ID"
-    fi
+    # Initialize variables
+    subaccounts_exist=false
+
+    # Perform the API request to fetch subaccounts
+
+      log "info" "Fetching subaccounts..."
+      response=$( curl -s -X GET "$api_endpoint" \
+        -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+        -H "Content-Type: application/json" )
     
+      # Check if the response is a valid JSON array
+      if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
+        log "error" "Failed to fetch subaccounts. Response: $response"
+        exit 1
+      fi
+
+      # Error and Exit if the response is empty
+      if [ "$response" == "[]" ]; then
+        log "error" "Failed to fetch subaccounts. Response is empty."    
+        exit 1
+      fi
+
+      # Set the flag to indicate that subaccounts exist
+      subaccounts_exist=true
+
+      # Parse the response and print the subaccounts
+      log "info" "Available subaccounts: (use the ID number to set the subaccount)"
+      echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
+
+      if [ "$subaccounts_exist" = false ]; then
+        log "info" "No subaccounts found."
+      fi
+      read -rp "Enter your Canvas Account ID or leave it blank to use the root account ID ($CANVAS_ROOT_ACCOUTN_ID): " entered_account_id
+
+      if [ -z "$entered_account_id" ]; then
+        entered_account_id="$CANVAS_ROOT_ACCOUTN_ID"
+      fi
+      
+    echo "CANVAS_ACCOUTN_ID=\"$entered_account_id\"" >> "$config_file"
+
     api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID"
 
     response=$(curl -s -X GET "$api_endpoint" \
