@@ -221,21 +221,14 @@ generate_conf() {
     # Perform the API request to fetch the root account
     response=$(curl -s -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data-urlencode "per_page=1")
+      -H "Content-Type: application/json")
     
-    # Check if the response is a valid JSON array
-    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
-      log "error" "Failed to fetch the root account. Response: $response"
-      exit 1
-    fi
-
     # Extract the root account ID from the response
     root_account_id=$(echo "$response" | jq '.[0].id')
 
     # Get the Canvas root account ID
     if [ "$root_account_id" == "" ]; then
-      log "error" "Failed to fetch the root account ID."
+      log "error" "Failed to fetch the root account. Response: $response"
       exit 1
     else
       log "info" "The root account ID is ($root_account_id)."
