@@ -1,6 +1,8 @@
 #!/bin/bash
 
+# Constants
 DEFAULT_LOG_DIR="${HOME}/Canvas/logs/"
+GITHUB_SCRIPT_URL="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
 
 log() {
   # This function is used to log messages to the console and to a log file
@@ -51,10 +53,8 @@ prepare_environment() {
   local canvas_home="${HOME}/Canvas"
   local script_name="canvas-admin.sh"
   local script_path="${canvas_home}/bin/${script_name}"
-  local remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
 
   log "info" "Preparing environment..."
-
   # Create directories if they don't exist
   log "info" "Creating necessary directories..."
   
@@ -70,7 +70,7 @@ prepare_environment() {
   log "info" "Checking if canvas-admin.sh exists and is executable..."
   if [ ! -f "$script_path" ]; then
       log "info" "canvas-admin.sh not found. Attempting to download the latest version..."
-      if curl --silent --fail -o "$script_path" "$remote_script_url"; then
+      if curl --silent --fail -o "$script_path" "$GITHUB_SCRIPT_URL"; then
           log "info" "canvas-admin.sh downloaded successfully."
       else
           log "error" "Failed to download canvas-admin.sh. Check your internet connection and try again."
