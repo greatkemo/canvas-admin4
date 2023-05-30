@@ -1,29 +1,24 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# constents
-CANVAS_ADMIN_HOME="${HOME}/Canvas/"
-CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
-CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
-CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
-CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
-CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
+DEFAULT_LOG_DIR="${HOME}/Canvas/logs/"
 
-config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-
-# Functions
 log() {
-    if [[ -e "${HOME}/Canvas/conf/canvas.conf" ]]; then
-        CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
-        config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-        source "${config_file}"
-    else
-        mkdir -p "${HOME}/Canvas/logs/"
-        CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
-    fi
+  # This function is used to log messages to the console and to a log file
+  # Usage: log <log_level> <message>
+  # Example: log "info" "This is an info message"
+  # Example: log "warn" "This is a warning message"
+  # Example: log "error" "This is an error message"
+  
+  # Define the log level and message
   log_level="$1"
   message="$2"
+  # Define the timestamp
   timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-  
+  # Define the log output
+  if [[ -z "${CANVAS_ADMIN_LOG}" ]]; then
+    CANVAS_ADMIN_LOG="${DEFAULT_LOG_DIR}"
+  fi
+  # Define the log label and color
   case "$log_level" in
     info)
       log_label="INFO"
@@ -41,124 +36,399 @@ log() {
       echo "Invalid log level. Please use 'info', 'warn', or 'error'."
       exit 1
   esac
-  
+  # Check if the log directory exists
+  if [[ ! -d "${CANVAS_ADMIN_LOG}" ]]; then
+    mkdir -p "${CANVAS_ADMIN_LOG}" || { echo "Could not create log directory ${CANVAS_ADMIN_LOG}"; exit 1; }
+  fi
+  # Define the log output
   log_output="[$timestamp] [$log_label] $message"
   sleep 0.5; echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
 }
 
 prepare_environment() {
+  # This function is used to prepare the environment for the canvas-admin.sh script
+  local directories=("bin" "Downloads" "tmp" "logs" "conf")
+  local canvas_home="${HOME}/Canvas"
+  local script_name="canvas-admin.sh"
+  local script_path="${canvas_home}/bin/${script_name}"
+  local remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
+
   log "info" "Preparing environment..."
 
   # Create directories if they don't exist
   log "info" "Creating necessary directories..."
-  mkdir -p "${HOME}/Canvas/"
-  mkdir -p "${HOME}/Canvas/bin/"
-  mkdir -p "${HOME}/Canvas/Downloads/"
-  mkdir -p "${HOME}/Canvas/tmp/"
-  mkdir -p "${HOME}/Canvas/logs/"
-  mkdir -p "${HOME}/Canvas/conf/"
-
-  CANVAS_ADMIN_HOME="${HOME}/Canvas/"
-  CANVAS_ADMIN_CONF="${HOME}/Canvas/conf/"
-  CANVAS_ADMIN_LOG="${HOME}/Canvas/logs/"
-  CANVAS_ADMIN_DL="${HOME}/Canvas/Downloads/"
-  CANVAS_ADMIN_TMP="${HOME}/Canvas/tmp/"
-  CANVAS_ADMIN_BIN="${HOME}/Canvas/bin/"
-
+  
+  for dir in "${directories[@]}"; do
+    if mkdir -p "${canvas_home}/${dir}"; then
+      log "info" "${canvas_home}/${dir} created successfully."
+    else
+      log "error" "Failed to create ${canvas_home}/${dir}."
+    fi
+  done
   log "info" "Directories created."
-
-  # Define the URL for the remote script
-  remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
-
   # Check if canvas-admin.sh exists in the bin directory
-  if [ ! -f "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
-    log "info" "canvas-admin.sh not found. Downloading the latest version of canvas-admin.sh..."
-    curl -s -o "${CANVAS_ADMIN_BIN}canvas-admin.sh" "$remote_script_url"
-    log "info" "canvas-admin.sh downloaded successfully."
+  log "info" "Checking if canvas-admin.sh exists and is executable..."
+  if [ ! -f "$script_path" ]; then
+      log "info" "canvas-admin.sh not found. Attempting to download the latest version..."
+      if curl --silent --fail -o "$script_path" "$remote_script_url"; then
+          log "info" "canvas-admin.sh downloaded successfully."
+      else
+          log "error" "Failed to download canvas-admin.sh. Check your internet connection and try again."
+          exit 1
+      fi
   fi
-
-  # Check if canvas-admin.sh is executable
-  if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
-    log "info" "canvas-admin.sh not executable. Making canvas-admin.sh executable..."
-    chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-    log "info" "canvas-admin.sh is now executable."
+  # Now check if the script is executable
+  if [ ! -x "$script_path" ]; then
+      log "info" "canvas-admin.sh not executable. Attempting to make canvas-admin.sh executable..."
+      if chmod +x "$script_path"; then
+          log "info" "canvas-admin.sh is now executable."
+      else
+          log "error" "Failed to make canvas-admin.sh executable. Check your file permissions."
+          exit 1
+      fi
+  else
+      log "info" "canvas-admin.sh is already executable."
   fi
-
   # Check which SHELL is default and update it profile to include the PATH environment variable
   # Check if the ${HOME}/bin directory is in the user PATH environment variable
-    if [[ ! -d "${HOME}/bin" ]]; then
-        log "warn" "${HOME}/bin directory does not exit. Creating it..."
-        mkdir -p "${HOME}/bin"
-    fi
-        if ! grep -q "${HOME}/bin" <<< "$PATH"; then
-        case "$SHELL" in
-            */bash)
-            # Update .bashrc or .bash_profile for bash
-            if ! grep -q "${HOME}/bin" "${HOME}/.bashrc"; then
-                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-                echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.bashrc"
-                source "${HOME}/.bashrc" >/dev/null 2>&1
+  if [[ ! -d "${HOME}/bin" ]]; then
+      log "warn" "${HOME}/bin directory does not exit. Creating it..."
+      mkdir -p "${HOME}/bin"
+  fi
+  if ! grep -q "${HOME}/bin" <<< "$PATH"; then
+    detect_shell() {
+      # This function is used to detect the user's shell and update the shell profile to include the ${HOME}/bin directory in the PATH environment variable
+      if ! grep -q "${HOME}/bin" "${HOME}/.${1}rc"; then
+        log "info" "Shell is ${1} updating .${1}rc with PATH..."
+        # Check if the shell is bash, zsh, or ksh
+        if [[ "$1" == "bash" ]] || [[ "$1" == "zsh" ]] || [[ "$1" == "ksh" ]]; then
+          # Update .bashrc or .bash_profile for bash, zsh, or ksh
+          if echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.${1}rc"; then
+            if source "${HOME}/.${1}rc" >/dev/null 2>&1; then
+              log "info" "Reloaded .${1}rc"
+            else
+              log "error" "Failed to reload .${1}rc"
             fi
-            ;;
-            */zsh)
-            # Update .zshrc for zsh
-            if ! grep -q "${HOME}/bin" "${HOME}/.zshrc"; then
-                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-                echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.zshrc"
-                source "${HOME}/.zshrc" >/dev/null 2>&1
+          else
+            log "error" "Failed to update .${1}rc with PATH"
+          fi
+        elif [[ $1 == "csh" ]] || [[ $1 == "tcsh" ]]; then
+          # Update .cshrc or .tcshrc for csh or tcsh
+          if echo "setenv PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.${1}rc"; then
+            if source "${HOME}/.${1}rc" >/dev/null 2>&1; then
+              log "info" "Reloaded .${1}rc"
+            else
+              log "error" "Failed to reload .${1}rc"
             fi
-            ;;
-            */csh)
-            # Update .cshrc for csh
-            if ! grep -q "${HOME}/bin" "${HOME}/.cshrc"; then
-                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-                echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.cshrc"
-                source "${HOME}/.cshrc" >/dev/null 2>&1
-            fi
-            ;;
-            */tcsh)
-            # Update .tcshrc for tcsh
-            if ! grep -q "${HOME}/bin" "${HOME}/.tcshrc"; then
-                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-                echo "setenv PATH ${HOME}/bin:\${PATH}" >> "${HOME}/.tcshrc"
-                source "${HOME}/.tcshrc" >/dev/null 2>&1
-            fi
-            ;;
-            */ksh)
-            # Update .kshrc for ksh
-            if ! grep -q "${HOME}/bin" "${HOME}/.kshrc"; then
-                log "info" "Shell is $(basename ${SHELL}) updating .$(basename ${SHELL})rc with PATH..."
-                echo "export PATH=${HOME}/bin:\${PATH}" >> "${HOME}/.kshrc"
-                source "${HOME}/.kshrc" >/dev/null 2>&1
-            fi
-            ;;
-            *)
-            # Handle other shells or exit with a message
-            log "error" "Unsupported shell detected. Please manually add ${HOME}/bin to your PATH environment variable."
-            exit 1
-            ;;
-        esac
-    fi
+          else
+            log "error" "Failed to update .${1}rc with PATH"
+          fi
+        fi
+      fi
+    }
+    case "$SHELL" in
+        */bash)
+          # Update .bashrc or .bash_profile for bash
+          detect_shell 'bash'
+        ;;
+        */zsh)
+          # Update .zshrc for zsh
+          detect_shell 'zsh'
+        ;;
+        */csh)
+          # Update .cshrc for csh
+          detect_shell 'csh'
+        ;;
+        */tcsh)
+          # Update .tcshrc for tcsh
+          detect_shell 'tcsh'
+        ;;
+        */ksh)
+          # Update .kshrc for ksh
+          detect_shell 'ksh'
+        ;;
+        *)
+          # Handle other shells or exit with a message
+          log "error" "Unsupported shell detected. Please manually add ${HOME}/bin to your PATH environment variable."
+          exit 1
+        ;;
+    esac
+  fi
  
   # Check if there is a bin directory in user home
-  log "info" "Creating symbolic link for canvas-admin.sh..."
+  log "info" "Checking for ${HOME}/bin directory..."
   if [[ -d "${HOME}/bin" ]]; then
-    unlink "${HOME}/bin/canvas-admin" >/dev/null 2>&1
-    ln -s "${CANVAS_ADMIN_BIN}canvas-admin.sh" "${HOME}/bin/canvas-admin"
-    log "info" "Symbolic link created in ${HOME}/bin/canvas-admin."
+    log "info" "Found ${HOME}/bin. Attempting to create symbolic link for canvas-admin.sh..."
+    # Try to unlink the old symlink, if it exists.
+    if unlink "${HOME}/bin/canvas-admin" >/dev/null 2>&1; then
+      log "info" "Removed old symbolic link at ${HOME}/bin/canvas-admin."
+    else
+      log "warn" "No symbolic link at ${HOME}/bin/canvas-admin to remove."
+    fi
+    # Try to create a new symlink.
+    if ln -s "$script_path" "${HOME}/bin/canvas-admin"; then
+      log "info" "Symbolic link created at ${HOME}/bin/canvas-admin."
+    else
+      log "error" "Failed to create symbolic link at ${HOME}/bin/canvas-admin. Check your file permissions."
+      exit 1
+    fi
   else
-    unlink "/usr/local/bin/canvas-admin" >/dev/null 2>&1
-    ln -s "${CANVAS_ADMIN_BIN}canvas-admin.sh" "/usr/local/bin/canvas-admin"
-    log "info" "Symbolic link created in /usr/local/bin/canvas-admin."
+    log "error" "${HOME}/bin directory does not exist. Cannot create symbolic link."
+    exit 1
+  fi
+  log "info" "Environment prepared."
+}
+
+validate_setup() {
+  # This function is used to validate the Canvas Admin setup
+  log "info" "Validating Canvas Admin setup..."
+  # Check if the configuration file exists and contains the required variables
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  if [ ! -f "$config_file" ]; then
+    log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
+    return 1
+  else
+    log "info" "Configuration file (canvas.conf) found and validated."
+    # Load the configuration file
+    source "$config_file"
+  fi
+  if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUTE_URL" ] \
+    || [ -z "$CANVAS_ROOT_ACCOUNT_ID" ] || [ -z "$CANVAS_ACCOUNT_ID" ] \
+    || [ -z "$CANVAS_INSTITUTE_NAME" ] || [ -z "$CANVAS_INSTITUTE_ABBREVIATION" ] \
+    || [ -z "$CANVAS_DEFAULT_TIMEZONE" ] || [ -z "$CANVAS_ADMIN_HOME" ] \
+    || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] \
+    || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] \
+    || [ -z "$CANVAS_ADMIN_BIN" ]; then
+    log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
+    return 1
+  else
+    log "info" "Required variables found and validated in the configuration file (canvas.conf)."
+  fi
+  # Check if the necessary directories exist
+  for dir in "${CANVAS_ADMIN_HOME}" "${CANVAS_ADMIN_BIN}" \
+              "${CANVAS_ADMIN_DL}" "${CANVAS_ADMIN_TMP}" \
+              "${CANVAS_ADMIN_LOG}" "${CANVAS_ADMIN_CONF}"; do
+    if [ ! -d "$dir" ]; then
+      log "error" "Required directory $dir is missing or incorrect in the Canvas Admin setup."
+      return 1
+    else 
+      log "info" "Required directory $dir found and validated."
+    fi
+  done
+  log "info" "Required directories found and validated."
+  # Check if the necessary files exist
+  # Check if canvas-admin.sh exists and is executable
+  if ! "${CANVAS_ADMIN_BIN}canvas-admin.sh" true 2>/dev/null; then
+      log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup. Expected path: ${CANVAS_ADMIN_BIN}canvas-admin.sh"
+  return 1
+  else
+      log "info" "canvas-admin.sh found and validated as executable by the current user."
+  fi
+  # If all checks passed, create the .done file
+  touch "${CANVAS_ADMIN_HOME}.done"
+  log "info" "Canvas Admin setup validation completed successfully."
+  return 0
+}
+
+generate_conf() {
+  # This function generates the canvas.conf configuration file
+  log "info" "Canvas Configuration Starting..."
+  # Define the configuration file path
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  # Check if the configuration file exists
+  if [ ! -f "$config_file" ]; then
+    # Prompt the user to enter an API Access Token
+    log "info" "The canvas.conf configuration file was not found. Creating a new configuration file..."
+    log "info" "Please follow the instructions to generate an API Access Token:"
+    log "info" "https://canvas.instructure.com/doc/api/file.oauth.html#manual-token-generation"
+    read -rp "Enter your Canvas API Access Token: " entered_token
+    # Prompt the user to enter the Canvas Institute URL
+    log "info" "Please enter your Canvas Institute URL e.g. canvas.school.edu or school.instructure.com"
+    read -rp "Enter your Canvas Institute URL: " entered_url
+    # Fetch the root account ID    
+    log "info" "Fetching accounts infomation..." 
+    # Define the API endpoint to fetch the root account  
+    api_endpoint="https://$entered_url/api/v1/accounts"
+    # Perform the API request to fetch the root account
+    response=$(curl -s -X GET --fail "$api_endpoint" \
+      -H "Authorization: Bearer $entered_token" \
+      -H "Content-Type: application/json")
+    # Check the exit status of the last command (curl) 
+    if [ $? -ne 0 ]; then
+      log "error" "Failed to fetch data from the Canvas API."
+      exit 1
+    fi
+    # Check if the response is valid JSON
+    if echo "$response" | jq . >/dev/null 2>&1; then
+      log "error" "Invalid JSON response from the Canvas API."
+      exit 1
+    fi
+    # Extract the root account ID from the response
+    detected_root_account_id=$(echo "$response" | jq '[.[] | select(.root_account_id == null)] | if length > 0 then .[0].id else .[0].root_account_id end')
+    # Get the Canvas root account ID
+    if ! [[ "$detected_root_account_id" =~ ^[0-9]+$ ]]; then
+      log "error" "Failed to fetch the root account. Response: $response"
+      exit 1
+    else
+      log "info" "The detected root account ID is ($detected_root_account_id)."
+    fi
+
+    echo "Fetching and listing available accounts..."
+    # Parse the response and print the accounts
+    log "info" "Available accounts: (use the ID number to set the account)"
+    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name) | Time Zone: \(.default_time_zone)"'
+    read -rp "Enter your Canvas account ID or leave it blank to use the root account ID ($detected_root_account_id): " entered_account_id
+    if [ -n "$entered_account_id" ]; then
+      detected_account_id="$entered_account_id"
+    else
+      detected_account_id="$detected_root_account_id"
+    fi
+    # Find the account with the entered account ID and set the institution name and time zone
+    account_info=$(echo "$response" | jq -c --arg id "$detected_account_id" '.[] | select(.id | tostring == $id)')
+    if [ -n "$account_info" ]; then
+      detected_institution_name=$(echo "$account_info" | jq -r '.name')
+      detected_time_zone=$(echo "$account_info" | jq -r '.default_time_zone')
+    else
+      log "error" "No account found with the ID: $detected_account_id. Using the root account's information instead."
+      detected_institution_name=$(echo "$response" | jq -r '.[0].name')
+      detected_time_zone=$(echo "$response" | jq -r '.[0].default_time_zone')
+    fi
+    # Prompt the user to confirm or modify the institution name
+    log "info" "Detecting the name of your institute..."
+    read -rp "Detected Institution Name is $detected_institution_name. Press Enter to accept, or type a new name: " entered_institution_name
+    if [ -n "$entered_institution_name" ]; then
+      detected_institution_name="$entered_institution_name"
+    fi
+    # Prompt the user to confirm or modify the institution abbreviation
+    log "info" "Detecting the abbreviation of your institute name..."
+    log "info" "This abbreviation is used for integration with other services such as Zoom, Box, Redshelf etc."
+    detected_institute_abbreviation=$(echo "$entered_institution_name" | awk -F' ' '{ for (i=1; i<=NF; ++i) printf substr($i, 1, 1) }' | tr '[:upper:]' '[:lower:]')
+    read -rp "Detected istitute abbreviation is ($detected_institute_abbreviation). Press Enter to accept, or type a different abbreviation: " entered_institute_abbreviation
+    if [ -n "$entered_institute_abbreviation" ]; then
+      detected_institute_abbreviation="$entered_institute_abbreviation"
+    fi
+    # Prompt the user to confirm or modify the time zone
+    log "info" "Detecting institue default timezone based on Canvas account..."
+    log "info" "This timezone is used for scheduling courses and other events."
+    read -rp "Detected Time Zone is $detected_time_zone. Press Enter to accept, or type a new timezone: " entered_time_zone
+    if [ -n "$entered_time_zone" ]; then
+      detected_time_zone="$entered_time_zone"
+    fi
+    # Save the access token and institute URL in the configuration file
+      log "info" "Canvas Configuration Starting..."
+  
+    # Define the configuration file path
+    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+
+    # Check if the configuration file exists
+    if [ -f "$config_file" ]; then
+      log "warn" "The canvas.conf configuration file already exists. Overwriting it will erase the existing configuration."
+
+      # Prompt the user for confirmation before overwriting the file
+      while true; do
+        read -rp "Are you sure you want to overwrite the existing configuration file? (y/n) " yn
+        case $yn in
+          [Yy]* ) break;;
+          [Nn]* ) return 1;;
+          * ) log "error" "Please answer yes (y) or no (n).";;
+        esac
+      done
+    fi    
+    echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
+    {
+
+      echo "CANVAS_INSTITUTE_URL=\"https://$entered_url/api/v1\""
+      echo "CANVAS_ROOT_ACCOUNT_ID=\"$detected_root_account_id\""
+      echo "CANVAS_ACCOUNT_ID=\"$detected_account_id\""
+      echo "CANVAS_INSTITUTE_NAME=\"$detected_institution_name\""
+      echo "CANVAS_INSTITUTE_ABBREVIATION=\"$detected_institute_abbreviation\""
+      echo "CANVAS_DEFAULT_TIMEZONE=\"$detected_time_zone\""
+      echo "CANVAS_ADMIN_HOME=\"${HOME}/Canvas/\""
+      echo "CANVAS_ADMIN_CONF=\"${HOME}/Canvas/conf/\""
+      echo "CANVAS_ADMIN_LOG=\"${HOME}/Canvas/logs/\""
+      echo "CANVAS_ADMIN_DL=\"${HOME}/Canvas/Downloads/\""
+      echo "CANVAS_ADMIN_TMP=\"${HOME}/Canvas/tmp/\""
+      echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
+
+    } >> "$config_file"
+    chmod 600 "$config_file"
+
+    log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
+  else
+    log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
+
+    # Load the access token and institute URL variables
+    source "$config_file"
+    # Validate the access token (this is a simple check, you may want to perform additional validation)
+    validate_setup
+  fi
+}
+
+check_for_updates() {
+  # This function checks for updates to the script and prompts the user to update if a new version is available
+  local force_update=false
+  local auto_confirm=false
+
+  # Process arguments
+  for arg in "$@"; do
+    case $arg in
+      -force)
+        force_update=true
+        ;;
+      -y)
+        auto_confirm=true
+        ;;
+      *)
+        log "error" "Unknown argument: $arg"
+        return 1
+        ;;
+    esac
+  done
+
+  # Load the configuration file
+  source "$config_file"
+
+  log "info" "Checking for updates to canvas-admin.sh..."
+  # Download the remote script into the tmp directory
+  log "info" "Downloading remote script for comparison..."
+  if ! curl --fail -s -o "${CANVAS_ADMIN_TMP}canvas-admin.sh" "$GITHUB_SCRIPT_URL"; then
+    log "error" "Failed to download the script from $GITHUB_SCRIPT_URL. Please check your network connection or the availability of the server."
+    return 1
+  fi
+  # Check if the downloaded script is different from the local script or if force update is enabled
+  if $force_update || ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
+    log "info" "A new version of canvas-admin.sh has been detected."
+    # Prompt the user to update
+    update_choice="n"
+    if $auto_confirm; then
+      update_choice="y"
+    else
+      read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
+    fi
+
+    if [[ "$update_choice" =~ ^[Yy]$|^$ ]]; then
+      # Update the local script
+      log "info" "Updating canvas-admin.sh to the latest version..."
+      mv "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"
+      chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
+      log "info" "canvas-admin.sh has been successfully updated to the latest version."
+    else
+      log "info" "Update skipped by user."
+    fi
+  else
+    log "info" "canvas-admin.sh is already up-to-date. No update required."
   fi
 
-  log "info" "Environment prepared."
+  # Clean up the tmp directory
+  log "info" "Cleaning up temporary files..."
+  rm -f "${CANVAS_ADMIN_TMP}canvas-admin.sh"
+  log "info" "Temporary files cleaned up."
 }
 
 list_subaccounts() {
   # Define the API endpoint for fetching subaccounts
   source "$config_file"
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
+  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
 
   # Initialize variables
   subaccounts_exist=false
@@ -194,258 +464,6 @@ list_subaccounts() {
   fi
 }
 
-generate_conf() {
-  log "info" "Checking Canvas API access token..."
-
-  # Define the configuration file path
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-
-  # Check if the configuration file exists
-  if [ ! -f "$config_file" ]; then
-    # Prompt the user to enter an API Access Token
-    log "info" "The canvas.conf configuration file was not found. Creating a new configuration file..."
-    log "info" "Please follow the instructions to generate an API Access Token:"
-    log "info" "https://canvas.instructure.com/doc/api/file.oauth.html#manual-token-generation"
-    read -rp "Enter your Canvas API Access Token: " entered_token
-    log "info" "Please enter your Canvas Institute URL e.g. canvas.school.edu or school.instructure.com"
-    read -rp "Enter your Canvas Institute URL: " entered_url
-
-    # Save the access token and institute URL in the configuration file
-    echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
-    echo "CANVAS_INSTITUE_URL=\"https://$entered_url/api/v1\"" >> "$config_file"
-    # Load the access token and institute URL variables
-    source "$config_file"
-    log "info" "Fetching the root account ID..." 
-    api_endpoint="$CANVAS_INSTITUE_URL/accounts"
-
-    # Perform the API request to fetch the root account
-    response=$(curl -s -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json")
-    
-    # Extract the root account ID from the response
-    root_account_id=$(echo "$response" | jq '.[0].id')
-
-    # Get the Canvas root account ID
-    if [ "$root_account_id" == "" ]; then
-      log "error" "Failed to fetch the root account. Response: $response"
-      exit 1
-    else
-      log "info" "The root account ID is ($root_account_id)."
-      echo "CANVAS_ROOT_ACCOUTN_ID=\"$root_account_id\"" >> "$config_file"
-    fi
-    
-    # List the sub-accounts and prompt the user to select one
-    source "$config_file"
-    echo "Fetching and listing available sub-accounts..."
-    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ROOT_ACCOUTN_ID/sub_accounts"
-
-    # Initialize variables
-    subaccounts_exist=false
-
-    # Perform the API request to fetch subaccounts
-
-      log "info" "Fetching subaccounts..."
-      response=$( curl -s -X GET "$api_endpoint" \
-        -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-        -H "Content-Type: application/json" )
-    
-      # Check if the response is a valid JSON array
-      if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
-        log "error" "Failed to fetch subaccounts. Response: $response"
-        exit 1
-      fi
-
-      # Error and Exit if the response is empty
-      if [ "$response" == "[]" ]; then
-        log "error" "Failed to fetch subaccounts. Response is empty."    
-        exit 1
-      fi
-
-      # Set the flag to indicate that subaccounts exist
-      subaccounts_exist=true
-
-      # Parse the response and print the subaccounts
-      log "info" "Available subaccounts: (use the ID number to set the subaccount)"
-      echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
-
-      if [ "$subaccounts_exist" = false ]; then
-        log "info" "No subaccounts found."
-      fi
-      read -rp "Enter your Canvas Account ID or leave it blank to use the root account ID ($CANVAS_ROOT_ACCOUTN_ID): " entered_account_id
-
-      if [ -z "$entered_account_id" ]; then
-        entered_account_id="$CANVAS_ROOT_ACCOUTN_ID"
-      fi
-      
-    echo "CANVAS_ACCOUTN_ID=\"$entered_account_id\"" >> "$config_file"
-
-    api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID"
-
-    response=$(curl -s -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json")
-
-    detected_institution_name=$(echo "$response" | jq -r '.name')
-    default_time_zone=$(echo "$response" | jq -r '.default_time_zone')
-
-    log "info" "Detecting the name of you institute..."
-    read -rp "Detected istitute name is ($detected_institution_name). Press Enter to accept, or type a different name: " entered_institute_long_name
-    if [ -z "$entered_institute_long_name" ]; then
-      entered_institute_long_name="$detected_institution_name"
-    fi
-
-    log "info" "Detecting the abbreviation of your institute name..."
-    log "info" "This abbreviation is used for integration with other services such as Zoom, Box, Redshelf etc."
-    detected_institute_short_name=$(echo "$entered_institute_long_name" | awk -F' ' '{ for (i=1; i<=NF; ++i) printf substr($i, 1, 1) }' | tr '[:upper:]' '[:lower:]')
-    read -rp "Detected istitute abbreviation is ($detected_institute_short_name). Press Enter to accept, or type a different abbreviation: " entered_institute_short_name
-    if [ -z "$entered_institute_short_name" ]; then
-      entered_institute_short_name="$detected_institute_short_name"
-    fi
-
-    # Get the user's location and timezone based on their IP address
-    log "info" "Detecting institue default timezone based on Canvas account..."
-    log "info" "This timezone is used for scheduling courses and other events."
-    log "info" "Your institutes detected timezone is ($default_time_zone)."
-    log "info" "Detecting user timezone based on your IP address..."
-    location_info=$(curl -s "http://ip-api.com/json")
-    user_time_zone=$(echo "$location_info" | jq -r '.timezone')
-    # if the default_time_zone and user_time_zone are the same, inform the user and prompt to confirm or modify, otherwise if the are different, inform user, and prompt to select or modify the timezone
-    # if the user selects a different timezone, prompt to confirm or modify
-    if [ "$default_time_zone" == "$user_time_zone" ]; then
-      read -rp "Your detected timezone is ($user_time_zone). Press Enter to accept, or type a different timezone: " entered_time_zone
-      if [ -z "$entered_time_zone" ]; then
-        entered_time_zone="$user_time_zone"
-      fi
-    else
-      log "info" "Your institutes default timezone is ($default_time_zone)."
-      log "info" "Your actual timezone is ($user_time_zone)."
-      read -rp "Press Enter to accept your institutes default timezone, or type a different timezone: " entered_time_zone
-      if [ -z "$entered_time_zone" ]; then
-        entered_time_zone="$default_time_zone"
-      fi
-    fi
-
-    # Save the access token, institute URL, account ID, school name, and timezone in the configuration file
-    {
-        echo "CANVAS_INSTITUTE_LONG_NAME=\"$entered_institute_long_name\""
-        echo "CANVAS_INSTITUTE_SHORT_NAME=\"$entered_institute_short_name\""
-        echo "CANVAS_DEFAULT_TIMEZONE=\"$entered_time_zone\""
-        echo "CANVAS_ADMIN_HOME=\"${HOME}/Canvas/\""
-        echo "CANVAS_ADMIN_CONF=\"${HOME}/Canvas/conf/\""
-        echo "CANVAS_ADMIN_LOG=\"${HOME}/Canvas/logs/\""
-        echo "CANVAS_ADMIN_DL=\"${HOME}/Canvas/Downloads/\""
-        echo "CANVAS_ADMIN_TMP=\"${HOME}/Canvas/tmp/\""
-        echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
-    } >> "$config_file"
-    
-    log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
-  else
-    log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
-
-    # Load the access token and institute URL variables
-    source "$config_file"
-
-    # Validate the access token (this is a simple check, you may want to perform additional validation)
-        if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_INSTITUTE_LONG_NAME" ] || [ -z "$CANVAS_DEFAULT_TIMEZONE" ]; then
-      log "error" "The Canvas API Access Token, Institute URL, Account ID, or School Name is not set in the configuration file."
-      exit 1
-    else
-      log "info" "Canvas API access token, Institute URL, Account ID, and School Name found and loaded from the configuration file."
-    fi
-  fi
-}
-
-validate_setup() {
-  log "info" "Validating Canvas Admin setup..."
-
-  # Check if the necessary directories exist
-  if [ ! -d "${CANVAS_ADMIN_HOME}" ] || [ ! -d "${CANVAS_ADMIN_HOME}bin" ] || [ ! -d "${CANVAS_ADMIN_HOME}Downloads" ] || [ ! -d "${CANVAS_ADMIN_HOME}tmp" ] || [ ! -d "${CANVAS_ADMIN_HOME}logs" ] || [ ! -d "${CANVAS_ADMIN_HOME}conf" ]; then
-    log "error" "Required directories are missing or incorrect in the Canvas Admin setup."
-    return 1
-  else
-    log "info" "Required directories found and validated."
-  fi
-
-  # Check if canvas-admin.sh exists and is executable
-  if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
-    log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup."
-    return 1
-  else
-    log "info" "canvas-admin.sh found and validated as executable."
-  fi
-
-  # Check if the configuration file exists and contains the required variables
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  if [ ! -f "$config_file" ]; then
-    log "error" "Configuration file (canvas.conf) is missing in the Canvas Admin setup."
-    return 1
-  else
-    log "info" "Configuration file (canvas.conf) found and validated."
-  fi
-
-  if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUE_URL" ] || [ -z "$CANVAS_ACCOUNT_ID" ] || [ -z "$CANVAS_INSTITUTE_LONG_NAME" ] || [ -z "$CANVAS_ADMIN_HOME" ] || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] || [ -z "$CANVAS_ADMIN_BIN" ]; then
-    log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
-    return 1
-  else
-    log "info" "Required variables found and validated in the configuration file (canvas.conf)."
-  fi
-
-  # If all checks passed, create the .done file
-  touch "${CANVAS_ADMIN_HOME}.done"
-  log "info" "Canvas Admin setup validation completed successfully."
-  return 0
-}
-
-check_for_updates() {
-  force_update=false
-
-  # Check if the -force option is provided
-  if [ "$1" == "-force" ]; then
-    force_update=true
-  fi
-
-  source "$config_file"
-  log "info" "Checking for updates to canvas-admin.sh..."
-
-  # Define the URL for the remote script
-  remote_script_url="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
-
-  # Download the remote script into the tmp directory
-  log "info" "Downloading remote script for comparison..."
-  curl -s -o "${CANVAS_ADMIN_TMP}canvas-admin.sh" "$remote_script_url"
-
-  # Check if the downloaded script is different from the local script or if force update is enabled
-  if $force_update || ! cmp -s "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"; then
-    log "info" "A new version of canvas-admin.sh has been detected."
-
-    # Prompt the user to update
-    update_choice="n"
-    if [ "$1" == "-y" ]; then
-      update_choice="y"
-    else
-      read -rp "A new version of canvas-admin.sh is available. Do you want to update? [Y/n]: " update_choice
-    fi
-
-    if [[ "$update_choice" =~ ^[Yy]$|^$ ]]; then
-      # Update the local script
-      log "info" "Updating canvas-admin.sh to the latest version..."
-      mv "${CANVAS_ADMIN_TMP}canvas-admin.sh" "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-      chmod +x "${CANVAS_ADMIN_BIN}canvas-admin.sh"
-      log "info" "canvas-admin.sh has been successfully updated to the latest version."
-    else
-      log "info" "Update skipped by user."
-    fi
-  else
-    log "info" "canvas-admin.sh is already up-to-date. No update required."
-  fi
-
-  # Clean up the tmp directory
-  log "info" "Cleaning up temporary files..."
-  rm -f "${CANVAS_ADMIN_TMP}canvas-admin.sh"
-  log "info" "Temporary files cleaned up."
-}
-
 user_search() {
   validate_setup
   search_pattern="$1"
@@ -454,7 +472,7 @@ user_search() {
   log "info" "Initiating user search with pattern: $search_pattern"
 
   # Define the API endpoint for searching users
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
+  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
 
   # Perform the API request to search for users
   log "info" "Sending API request to search for users..."
@@ -483,7 +501,7 @@ get_user_id() {
   search_pattern="$1"
 
   # Define the API endpoint for searching users
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
+  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
 
   # Perform the API request to search for users
   response=$(curl -s -X GET "$api_endpoint" \
@@ -504,7 +522,7 @@ enroll_instructor() {
   instructor_id="$2"
 
   # Define the API endpoint for enrolling an instructor in the course
-  api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id/enrollments"
+  api_endpoint="$CANVAS_INSTITUTE_URL/courses/$course_id/enrollments"
 
   # Define the API request data
   api_data="{\"enrollment\": {\"user_id\": \"$instructor_id\", \"type\": \"TeacherEnrollment\", \"enrollment_state\": \"active\"}}"
@@ -530,7 +548,7 @@ course_configuration() {
 
   log "info" "Initiating course settings update for course ID: $course_id"
 
-  api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id"
+  api_endpoint="$CANVAS_INSTITUTE_URL/courses/$course_id"
 
   case "$setting_type" in
     -timezone)
@@ -571,7 +589,7 @@ course_books() {
   log "info" "Initiating the process to add online textbook links to course ID: $course_id"
 
   # Create the "Online Textbooks" module
-  api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id/modules"
+  api_endpoint="$CANVAS_INSTITUTE_URL/courses/$course_id/modules"
   module_data="{\"module\": {\"name\": \"Online Textbooks\"}}"
 
   log "info" "Creating 'Online Textbooks' module..."
@@ -583,7 +601,7 @@ course_books() {
   log "info" "Successfully created 'Online Textbooks' module with ID: $module_id"
 
   # Define the API endpoint for adding items to the module
-  api_endpoint="$CANVAS_INSTITUE_URL/courses/$course_id/modules/$module_id/items"
+  api_endpoint="$CANVAS_INSTITUTE_URL/courses/$course_id/modules/$module_id/items"
 
   # Add external links to the module based on the book type
   case "$book_type" in
@@ -619,7 +637,7 @@ course_books() {
 
 get_term_id() {
   local term_query="$1"
-  local api_endpoint="$CANVAS_INSTITUE_URL/accounts/$CANVAS_ACCOUNT_ID/terms"
+  local api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/terms"
   local response
 
   response=$(curl -s -X GET "$api_endpoint" \
@@ -655,7 +673,7 @@ create_single_course() {
   instructor_id="$5"
 
   # Define the API endpoint for creating courses
-  api_endpoint="$CANVAS_INSTITUE_URL/accounts/${sub_account_id:-$CANVAS_ACCOUNT_ID}/courses"
+  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/${sub_account_id:-$CANVAS_ACCOUNT_ID}/courses"
 
   # Define the API request data
   api_data="{\"course\": {\"name\": \"$course_name\", \"course_code\": \"$course_code\""
