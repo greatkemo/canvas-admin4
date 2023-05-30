@@ -234,7 +234,11 @@ generate_conf() {
   # This function generates the canvas.conf configuration file
   log "info" "Canvas Configuration Starting..."
   # Define the configuration file path
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  local path_conf_file="${HOME}/Canvas/conf/"
+  local config_file="${path_conf_file}canvas.conf"
+  if [ ! -d "$path_conf_file" ]; then
+    mkdir -p "$path_conf_file"
+  fi
   # Check if the configuration file exists
   if [ ! -f "$config_file" ]; then
     # Prompt the user to enter an API Access Token
