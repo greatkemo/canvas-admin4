@@ -263,7 +263,7 @@ generate_conf() {
       exit 1
     fi
     # Check if the response is valid JSON
-    if echo "$response" | jq . >/dev/null 2>&1; then
+    if ! echo "$response" | jq . >/dev/null 2>&1; then
       log "error" "Invalid JSON response from the Canvas API."
       exit 1
     fi
