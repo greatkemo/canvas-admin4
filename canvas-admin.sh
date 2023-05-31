@@ -220,11 +220,11 @@ validate_setup() {
   done
   log "info" "Directories validation completed successfully."
   # Check if the necessary files exist and if canvas-admin.sh exists and is executable
-  if ! "${CANVAS_ADMIN_BIN}canvas-admin.sh" true 2>/dev/null; then
-      log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup. Expected path: ${CANVAS_ADMIN_BIN}canvas-admin.sh"
-  return 1
+  if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
+    log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup. Expected path: ${CANVAS_ADMIN_BIN}canvas-admin.sh"
+    return 1
   else
-      log "info" "canvas-admin.sh found and validated as executable by the current user."
+    log "info" "canvas-admin.sh found and validated as executable by the current user."
   fi
   # If all checks passed, create the .done file
   touch "${CANVAS_ADMIN_HOME}.done"
@@ -279,7 +279,7 @@ generate_conf() {
       log "info" "The detected root account ID is ($detected_root_account_id)."
     fi
 
-    echo "Fetching and listing available accounts..."
+    log "info" "Fetching and listing available accounts..."
     # Parse the response and print the accounts
     log "info" "Available accounts: (use the ID number to set the account)"
     echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name) | Time Zone: \(.default_time_zone)"'
@@ -327,7 +327,6 @@ generate_conf() {
     config_file="${HOME}/Canvas/conf/canvas.conf"
 
     # Check if the configuration file exists
-    echo "$config_file"
     if [[ -f "$config_file" ]]; then
       log "warn" "The canvas.conf configuration file already exists. Overwriting it will erase the existing configuration."
 
