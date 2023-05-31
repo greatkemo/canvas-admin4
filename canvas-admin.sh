@@ -319,7 +319,7 @@ generate_conf() {
       log "info" "Canvas Configuration Starting..."
   
     # Define the configuration file path
-    config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+    config_file="${HOME}/Canvas/conf/canvas.conf"
 
     # Check if the configuration file exists
     echo "$config_file"
