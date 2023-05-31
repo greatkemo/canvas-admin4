@@ -498,8 +498,8 @@ user_search() {
   fi
 
   # Parse the response and create the CSV file
-  log "info" "Parsing API response and generating CSV file..."
   if [[ "$suppress_logs_and_download_prompt" != "suppress" ]]; then
+    log "info" "Parsing API response and generating CSV file..."
     echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
   fi
   echo "$response" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$output_file"
@@ -539,11 +539,7 @@ process_input_file() {
   local input_file="$1"
   # Define a single output file for all searches
   
-  local output_file 
-  output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
-
-  # Write header to the output file
-  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+  local output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
   # Get the total number of lines in the input file
   local total_lines
@@ -552,6 +548,8 @@ process_input_file() {
   # Initialize the current line number
   local current_line=1
 
+  # Write header to the output file
+  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
   # Process each search pattern
   while read -r line; do
     log "info" "Processing search pattern: $line ($current_line/$total_lines)"
