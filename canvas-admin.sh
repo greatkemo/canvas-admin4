@@ -504,18 +504,7 @@ user_search() {
 
   # Display the search results
   log "info" "User search results:"
-  jq -r '.[] | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\
-              \nINTEGRATION_ID: \(.integration_id)\
-              \nLOGIN_ID: \(.login_id)\
-              \nFIRST_NAME: \(.sortable_name | split(", ")[1])\
-              \nLAST_NAME: \(.sortable_name | split(", ")[0])\
-              \nFULL_NAME: \(.name)\
-              \nSORTABLE_NAME: \(.sortable_name)\
-              \nSHORT_NAME: \(.short_name)\
-              \nEMAIL: \(.email)\
-              \nSTATUS: \(if .enrollments != null then .enrollments[0].workflow_state else "" end)\
-              \nCREATED_BY_SIS: \(if .sis_user_id != null then "TRUE" else "FALSE" end)\n"' "$output_file"
-
+  jq -r '.[] | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nINTEGRATION_ID: \(.integration_id)\nLOGIN_ID: \(.login_id)\nFIRST_NAME: \(.sortable_name | split(", ")[1])\nLAST_NAME: \(.sortable_name | split(", ")[0])\nFULL_NAME: \(.name)\nSORTABLE_NAME: \(.sortable_name)\nSHORT_NAME: \(.short_name)\nEMAIL: \(.email)\nSTATUS: \(if .enrollments != null then .enrollments[0].workflow_state else "" end)\nCREATED_BY_SIS: \(if .sis_user_id != null then "TRUE" else "FALSE" end)\n"' "$output_file"
   # Prompt for download
   while true; do
     read -rp "Would you like to download the CSV file? (y/n) " yn
