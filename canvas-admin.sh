@@ -551,15 +551,20 @@ process_input_file() {
   echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
   # Process each search pattern
   while read -r line; do
+    
+    # Skip if line is empty or contains only spaces
+    [[ -z "${line// }" ]] && continue
+    # Skip if line starts with a hash
+    [[ "$line" =~ ^#.*$ ]] && continue
 
     # Pad the search_pattern to a width of 20 with trailing spaces
-    printf -v search_pattern_padded "%-20s" "$line"
+    printf -v line_padded "%-20s" "$line"
 
     # Pad the line number and total lines to a width of 3 with leading zeros
     current_line_padded=$(printf "%03d" "$current_line")
     total_lines_padded=$(printf "%03d" "$total_lines")
 
-    log "info" "Processing search pattern: $search_pattern_padded ($current_line_padded/$total_lines_padded)"
+    log "info" "Processing search pattern: $line_padded ($current_line_padded/$total_lines_padded)"
 
     # Suppress logs and download prompt from the user_search() function    
     if ! user_search "$line" "suppress" "$output_file" >/dev/null; then
