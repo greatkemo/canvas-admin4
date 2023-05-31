@@ -52,7 +52,6 @@ log() {
   fi
 }
 
-
 prepare_environment() {
   log "info" "BEGIN: the function prepare_environment()..."
   # This function is used to prepare the environment for the canvas-admin.sh script
@@ -187,58 +186,6 @@ prepare_environment() {
   log "info" "END: the function prepare_environment()."
 }
 
-validate_setup() {
-  log "info" "BEGIN: the function validate_setup()..."
-  # This function is used to validate the Canvas Admin setup
-  log "info" "Validating Canvas Admin setup..."
-  # Check if the configuration file exists and contains the required variables
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  if [[ ! -f "$config_file" ]]; then
-    log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
-    return 1
-  else
-    log "info" "Configuration file (canvas.conf) found."
-    # Load the configuration file
-    source "$config_file"
-  fi
-  if [[ -z "$CANVAS_ACCESS_TOKEN" ]] || [[ -z "$CANVAS_INSTITUTE_URL" ]] \
-    || [[ -z "$CANVAS_ROOT_ACCOUNT_ID" ]] || [[ -z "$CANVAS_ACCOUNT_ID" ]] \
-    || [[ -z "$CANVAS_INSTITUTE_NAME" ]] || [[ -z "$CANVAS_INSTITUTE_ABBREVIATION" ]] \
-    || [[ -z "$CANVAS_DEFAULT_TIMEZONE" ]] || [[ -z "$CANVAS_ADMIN_HOME" ]] \
-    || [[ -z "$CANVAS_ADMIN_CONF" ]] || [[ -z "$CANVAS_ADMIN_LOG" ]] \
-    || [[ -z "$CANVAS_ADMIN_DL" ]] || [[ -z "$CANVAS_ADMIN_TMP" ]] \
-    || [[ -z "$CANVAS_ADMIN_BIN" ]]|| [[ -z "$CANVAS_ADMIN_CACHE" ]]; then
-    log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
-    return 1
-  else
-    log "info" "Required variables found and validated in the configuration file (canvas.conf)."
-  fi
-  # Check if the necessary directories exist
-  for dir in "${CANVAS_ADMIN_HOME}" "${CANVAS_ADMIN_BIN}" \
-              "${CANVAS_ADMIN_DL}" "${CANVAS_ADMIN_TMP}" \
-              "${CANVAS_ADMIN_LOG}" "${CANVAS_ADMIN_CONF}" "${CANVAS_ADMIN_CACHE}"; do
-    if [[ ! -d "$dir" ]]; then
-      log "error" "Required directory $dir is missing or incorrect in the Canvas Admin setup."
-      return 1
-    else 
-      log "info" "Required directory $dir found and validated."
-    fi
-  done
-  log "info" "Directories validation completed successfully."
-  # Check if the necessary files exist and if canvas-admin.sh exists and is executable
-  if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
-    log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup. Expected path: ${CANVAS_ADMIN_BIN}canvas-admin.sh"
-    return 1
-  else
-    log "info" "canvas-admin.sh found and validated as executable by the current user."
-  fi
-  # If all checks passed, create the .done file
-  touch "${CANVAS_ADMIN_HOME}.done"
-  log "info" "Canvas Admin setup validation completed successfully."
-  log "info" "END: the function validate_setup()."
-  return 0
-}
-
 generate_conf() {
   log "info" "BEGIN: the function generate_conf()..."
   # This function generates the canvas.conf configuration file
@@ -369,6 +316,59 @@ generate_conf() {
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
   fi
   log "info" "END: the function generate_conf()."
+}
+
+validate_setup() {
+  log "info" "BEGIN: the function validate_setup()..."
+  # This function is used to validate the Canvas Admin setup
+  log "info" "Validating Canvas Admin setup..."
+  # Check if the configuration file exists and contains the required variables
+  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  if [[ ! -f "$config_file" ]]; then
+    log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
+    return 1
+  else
+    log "info" "Configuration file (canvas.conf) found."
+    # Load the configuration file
+    source "$config_file"
+  fi
+  if [[ -z "$CANVAS_ACCESS_TOKEN" ]] || [[ -z "$CANVAS_INSTITUTE_URL" ]] \
+    || [[ -z "$CANVAS_ROOT_ACCOUNT_ID" ]] || [[ -z "$CANVAS_ACCOUNT_ID" ]] \
+    || [[ -z "$CANVAS_INSTITUTE_NAME" ]] || [[ -z "$CANVAS_INSTITUTE_ABBREVIATION" ]] \
+    || [[ -z "$CANVAS_DEFAULT_TIMEZONE" ]] || [[ -z "$CANVAS_ADMIN_HOME" ]] \
+    || [[ -z "$CANVAS_ADMIN_CONF" ]] || [[ -z "$CANVAS_ADMIN_LOG" ]] \
+    || [[ -z "$CANVAS_ADMIN_DL" ]] || [[ -z "$CANVAS_ADMIN_TMP" ]] \
+    || [[ -z "$CANVAS_ADMIN_BIN" ]]|| [[ -z "$CANVAS_ADMIN_CACHE" ]]; then
+    log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
+    return 1
+  else
+    log "info" "Required variables found and validated in the configuration file (canvas.conf)."
+  fi
+  # Check if the necessary directories exist
+  for dir in "${CANVAS_ADMIN_HOME}" "${CANVAS_ADMIN_BIN}" \
+              "${CANVAS_ADMIN_DL}" "${CANVAS_ADMIN_TMP}" \
+              "${CANVAS_ADMIN_LOG}" "${CANVAS_ADMIN_CONF}" \
+              "${CANVAS_ADMIN_CACHE}"; do
+    if [[ ! -d "$dir" ]]; then
+      log "error" "Required directory $dir is missing or incorrect in the Canvas Admin setup."
+      return 1
+    else 
+      log "info" "Required directory $dir found and validated."
+    fi
+  done
+  log "info" "Directories validation completed successfully."
+  # Check if the necessary files exist and if canvas-admin.sh exists and is executable
+  if [ ! -x "${CANVAS_ADMIN_BIN}canvas-admin.sh" ]; then
+    log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup. Expected path: ${CANVAS_ADMIN_BIN}canvas-admin.sh"
+    return 1
+  else
+    log "info" "canvas-admin.sh found and validated as executable by the current user."
+  fi
+  # If all checks passed, create the .done file
+  touch "${CANVAS_ADMIN_HOME}.done"
+  log "info" "Canvas Admin setup validation completed successfully."
+  log "info" "END: the function validate_setup()."
+  return 0
 }
 
 check_for_updates() {
@@ -734,7 +734,7 @@ get_term_id() {
   echo "$term_id"
 }
 
--list_subaccounts() {
+list_subaccounts() {
   # Define the API endpoint for fetching subaccounts
   source "$config_file"
   api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
