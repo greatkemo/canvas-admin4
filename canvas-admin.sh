@@ -553,13 +553,14 @@ process_input_file() {
   while read -r line; do
 
     # Pad the search_pattern to a width of 20 with trailing spaces
-    printf -v search_pattern_padded "%-20s" "$search_pattern"
+    printf -v search_pattern_padded "%-20s" "$line"
 
     # Pad the line number and total lines to a width of 3 with leading zeros
     current_line_padded=$(printf "%03d" "$current_line")
     total_lines_padded=$(printf "%03d" "$total_lines")
 
     log "info" "Processing search pattern: $search_pattern_padded ($current_line_padded/$total_lines_padded)"
+
     # Suppress logs and download prompt from the user_search() function    
     if ! user_search "$line" "suppress" "$output_file" >/dev/null; then
       log "error" "Failed to process search pattern: $line."
