@@ -323,7 +323,7 @@ validate_setup() {
   # This function is used to validate the Canvas Admin setup
   log "info" "Validating Canvas Admin setup..."
   # Check if the configuration file exists and contains the required variables
-  config_file="${CANVAS_ADMIN_CONF}canvas.conf"
+  config_file="${HOME}/Canvas/conf/canvas.conf"
   if [[ ! -f "$config_file" ]]; then
     log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
     return 1
