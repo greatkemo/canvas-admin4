@@ -438,17 +438,13 @@ check_for_updates() {
 user_search() {
   # This function searches for users based on the search pattern and saves the results in a CSV file
 
-  # Validate the Canvas Admin setup
-  validate_setup > /dev/null
-
   source "$CONF_FILE"
   
   log "info" "BEGIN: the function user_search()..."
   
   local search_pattern="$1"
   local suppress_logs_and_download_prompt="$2"
-  local output_file
-  output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
+  local output_file="${3:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
 
   local response
   local lastname
@@ -534,17 +530,24 @@ user_search() {
 
 process_input_file() {
   # This function handles the case when multiple search patterns are provided in an input file
+  source "$CONF_FILE"
 
   log "info" "BEGIN: the function process_input_file()..."
 
-  source "$CONF_FILE"
-
   local input_file="$1"
+  # Define a single output file for all searches
+  
+  local output_file 
+  output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
+  # Write header to the output file
+  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+
+  # Process each search pattern
   while read -r line; do
     log "info" "Processing search pattern: $line"
     # Suppress logs and download prompt from the user_search() function
-    if user_search "$line" "suppress"; then
+    if user_search "$line" "suppress" "$output_file"; then
       log "info" "Search pattern processed successfully."
     else
       log "error" "Failed to process search pattern."
@@ -897,7 +900,6 @@ usage() {
 # Main script
 # Call the necessary functions
 if [[ ! -f "${HOME}/Canvas/.done" ]]; then
-
   # Prompt the user to install Canvas Admin if it is not installed
   log "info" "BEGIN: Canvas Admin Installtion and Configuration..."
   while true; do
@@ -938,8 +940,10 @@ while [[ "$#" -gt 0 ]]; do
       user) # search for users
         shift
         if [[ -f "$1" ]]; then
+          validate_setup > /dev/null
           process_input_file "$1"
         else
+          validate_setup > /dev/null
           user_search "$1"
         fi
         shift
