@@ -446,12 +446,15 @@ user_search() {
   log "info" "BEGIN: the function user_search()..."
   
   local search_pattern="$1"
+  local suppress_logs_and_download_prompt="$2"
   local output_file
+  output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
+
   local response
   local lastname
   local firstname
   local cached_user
-  output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
+  
   local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
 
@@ -504,23 +507,28 @@ user_search() {
   echo "$response" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$output_file"
 
   # Display the search results
-  log "info" "User search results:"
-  echo "$response" | jq -r '.[] | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nINTEGRATION_ID: \(.integration_id)\nLOGIN_ID: \(.login_id)\nFIRST_NAME: \(.sortable_name | split(", ")[1])\nLAST_NAME: \(.sortable_name | split(", ")[0])\nFULL_NAME: \(.name)\nSORTABLE_NAME: \(.sortable_name)\nSHORT_NAME: \(.short_name)\nEMAIL: \(.email)\nSTATUS: \(if .enrollments != null then .enrollments[0].workflow_state else "" end)\nCREATED_BY_SIS: \(if .sis_user_id != null then "TRUE" else "FALSE" end)\n"'
+  if [[ "$suppress_logs_and_download_prompt" != "suppress" ]]; then
+    log "info" "User search results:"
+    echo "$response" | jq -r '.[] | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nINTEGRATION_ID: \(.integration_id)\nLOGIN_ID: \(.login_id)\nFIRST_NAME: \(.sortable_name | split(", ")[1])\nLAST_NAME: \(.sortable_name | split(", ")[0])\nFULL_NAME: \(.name)\nSORTABLE_NAME: \(.sortable_name)\nSHORT_NAME: \(.short_name)\nEMAIL: \(.email)\nSTATUS: \(if .enrollments != null then .enrollments[0].workflow_state else "" end)\nCREATED_BY_SIS: \(if .sis_user_id != null then "TRUE" else "FALSE" end)\n"'
+  fi
   # Prompt for download
-  while true; do
-    read -rp "Would you like to download the CSV file? (y/n) " yn
-    case $yn in
-      [Yy]* ) 
-        log "info" "You can download the CSV file from: $output_file"
-        break
-        ;;
-      [Nn]* ) 
-        log "info" "Okay, the CSV file won't be downloaded."
-        break
-        ;;
-      * ) log "error" "Please answer yes (y) or no (n).";;
-    esac
-  done
+  # Suppress download prompt if requested
+  if [[ "$suppress_logs_and_download_prompt" != "suppress" ]]; then
+    while true; do
+      read -rp "Would you like to download the CSV file? (y/n) " yn
+      case $yn in
+        [Yy]* ) 
+          log "info" "You can download the CSV file from: $output_file"
+          break
+          ;;
+        [Nn]* ) 
+          log "info" "Okay, the CSV file won't be downloaded."
+          break
+          ;;
+        * ) log "error" "Please answer yes (y) or no (n).";;
+      esac
+    done
+  fi
   log "info" "END: the function user_search()."
 }
 
@@ -535,7 +543,12 @@ process_input_file() {
 
   while read -r line; do
     log "info" "Processing search pattern: $line"
-    user_search "$line"
+    # Suppress logs and download prompt from the user_search() function
+    if user_search "$line" "suppress"; then
+      log "info" "Search pattern processed successfully."
+    else
+      log "error" "Failed to process search pattern."
+    fi
   done < "$input_file"
 
   # Prompt for download
