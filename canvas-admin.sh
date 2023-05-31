@@ -3,6 +3,8 @@
 # Constants
 DEFAULT_LOG_DIR="${HOME}/Canvas/logs/"
 GITHUB_SCRIPT_URL="https://raw.githubusercontent.com/greatkemo/canvas-admin4/main/canvas-admin.sh"
+CONF_FILE="${HOME}/Canvas/conf/canvas.conf"
+
 
 log() {
   # This function is used to log messages to the console and to a log file
@@ -277,10 +279,10 @@ generate_conf() {
       log "info" "Canvas Configuration Starting..."
   
     # Define the configuration file path
-    config_file="${HOME}/Canvas/conf/canvas.conf"
+    CONF_FILE="${HOME}/Canvas/conf/canvas.conf"
 
     # Check if the configuration file exists
-    if [[ -f "$config_file" ]]; then
+    if [[ -f "$CONF_FILE" ]]; then
       log "warn" "The canvas.conf configuration file already exists. Overwriting it will erase the existing configuration."
 
       # Prompt the user for confirmation before overwriting the file
@@ -293,7 +295,7 @@ generate_conf() {
         esac
       done
     fi    
-    echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$config_file"
+    echo "CANVAS_ACCESS_TOKEN=\"$entered_token\"" > "$CONF_FILE"
     {
 
       echo "CANVAS_INSTITUTE_URL=\"https://$entered_url/api/v1\""
@@ -310,8 +312,8 @@ generate_conf() {
       echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
       echo "CANVAS_ADMIN_CACHE=\"${HOME}/Canvas/cache/\""
 
-    } >> "$config_file"
-    chmod 600 "$config_file"
+    } >> "$CONF_FILE"
+    chmod 600 "$CONF_FILE"
 
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
   fi
@@ -323,14 +325,13 @@ validate_setup() {
   # This function is used to validate the Canvas Admin setup
   log "info" "Validating Canvas Admin setup..."
   # Check if the configuration file exists and contains the required variables
-  config_file="${HOME}/Canvas/conf/canvas.conf"
-  if [[ ! -f "$config_file" ]]; then
-    log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
+  if [[ ! -f "$CONF_FILE" ]]; then
+    log "error" "Configuration file (canvas.conf) is missing. Expected path: $CONF_FILE"
     return 1
   else
     log "info" "Configuration file (canvas.conf) found."
     # Load the configuration file
-    source "$config_file"
+    source "$CONF_FILE"
   fi
   if [[ -z "$CANVAS_ACCESS_TOKEN" ]] || [[ -z "$CANVAS_INSTITUTE_URL" ]] \
     || [[ -z "$CANVAS_ROOT_ACCOUNT_ID" ]] || [[ -z "$CANVAS_ACCOUNT_ID" ]] \
@@ -394,7 +395,7 @@ check_for_updates() {
   done
 
   # Load the configuration file
-  source "$config_file"
+  source "$CONF_FILE"
 
   log "info" "Checking for updates to canvas-admin.sh..."
   # Download the remote script into the tmp directory
@@ -440,7 +441,7 @@ user_search() {
   # Validate the Canvas Admin setup
   validate_setup > /dev/null
 
-  source "$config_file"
+  source "$CONF_FILE"
   
   log "info" "BEGIN: the function user_search()..."
   
@@ -528,7 +529,7 @@ process_input_file() {
 
   log "info" "BEGIN: the function process_input_file()..."
 
-  source "$config_file"
+  source "$CONF_FILE"
 
   local input_file="$1"
 
@@ -725,7 +726,7 @@ get_term_id() {
 
 list_subaccounts() {
   # Define the API endpoint for fetching subaccounts
-  source "$config_file"
+  source "$CONF_FILE"
   api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
 
   # Initialize variables
