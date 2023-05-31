@@ -48,6 +48,7 @@ log() {
 }
 
 prepare_environment() {
+  log "info" "BEGIN the function prepare_environment()..."
   # This function is used to prepare the environment for the canvas-admin.sh script
   local directories=("bin" "Downloads" "tmp" "logs" "conf")
   local canvas_home="${HOME}/Canvas"
@@ -177,9 +178,11 @@ prepare_environment() {
     exit 1
   fi
   log "info" "Environment prepared."
+  log "info" "END the function prepare_environment()."
 }
 
 validate_setup() {
+  log "info" "BEGIN the function validate_setup()..."
   # This function is used to validate the Canvas Admin setup
   log "info" "Validating Canvas Admin setup..."
   # Check if the configuration file exists and contains the required variables
@@ -226,10 +229,12 @@ validate_setup() {
   # If all checks passed, create the .done file
   touch "${CANVAS_ADMIN_HOME}.done"
   log "info" "Canvas Admin setup validation completed successfully."
+  log "info" "END the function validate_setup()."
   return 0
 }
 
 generate_conf() {
+  log "info" "BEGIN the function generate_conf()..."
   # This function generates the canvas.conf configuration file
   log "info" "Canvas Configuration Starting..."
   # Define the configuration file path
@@ -356,17 +361,12 @@ generate_conf() {
     chmod 600 "$config_file"
 
     log "info" "Access token, Institute URL, Account ID, School Name, and Time Zone saved in the configuration file."
-  else
-    log "info" "canvas.conf configuration file found. Loading access token and other configuration variables..."
-
-    # Load the access token and institute URL variables
-    source "$config_file"
-    # Validate the access token (this is a simple check, you may want to perform additional validation)
-    validate_setup
   fi
+  log "info" "END the function generate_conf()."
 }
 
 check_for_updates() {
+  log "info" "BEGIN the function check_for_updates()..."
   # This function checks for updates to the script and prompts the user to update if a new version is available
   local force_update=false
   local auto_confirm=false
@@ -425,6 +425,7 @@ check_for_updates() {
   log "info" "Cleaning up temporary files..."
   rm -f "${CANVAS_ADMIN_TMP}canvas-admin.sh"
   log "info" "Temporary files cleaned up."
+  log "info" "END the function check_for_updates()."
 }
 
 list_subaccounts() {
@@ -787,18 +788,21 @@ usage() {
 
 # Main script
 # Call the necessary functions
-if [ ! -f "${HOME}/Canvas/.done" ]; then
-  prepare_environment
-  generate_conf
+if [[ ! -f "${HOME}/Canvas/.done" ]]; then
 
-  # Validate the setup and create the .done file
-  if ! validate_setup; then
-    log "error" "Validation failed. Please check the setup."
-    exit 1
-  fi
+  # Prompt the user to install Canvas Admin if it is not installed
+  while true; do
+    read -rp "Canvas Admin is either not installed or not configured correctly, Install now? (y/n) " yn
+    case $yn in
+      [Yy]* ) break;;
+      [Nn]* ) return 1;;
+      * ) log "error" "Please answer yes (y) or no (n).";;
+    esac
+  done
+  prepare_environment && generate_conf && validate_setup
 fi
 
-while [ "$#" -gt 0 ]; do
+while [[ "$#" -gt 0 ]]; do
   case "$1" in
     help) # show the usage message
       usage 
@@ -806,12 +810,18 @@ while [ "$#" -gt 0 ]; do
       ;;
     update) # check for updates
       shift
-      if [ "$1" = "-y" ]; then
-        check_for_updates "-y"
-      elif [ "$1" = "-force" ]; then
-        check_for_updates "-force"
+      if [[ "$1" = "-y" ]]; then
+        if check_for_updates "-y"; then
+          validate_setup
+        fi
+      elif [[ "$1" = "-force" ]]; then
+        if check_for_updates "-force"; then
+          validate_setup
+        fi
       else
-        check_for_updates
+        if check_for_updates; then
+          validate_setup
+        fi
       fi
       exit 0
       ;;
@@ -822,7 +832,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     createcourse) # create a new course
       shift
-      if [ -n "$1" ] && [ -f "$1" ]; then
+      if [[ -n "$1" ]] && [[ -f "$1" ]]; then
         create_course "$1"
         shift
       else
