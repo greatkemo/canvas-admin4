@@ -541,11 +541,20 @@ process_input_file() {
   
   local output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
+  # Define a function to pad a number with leading zeros
+  pad_number() {
+    local number=$1
+    local total_digits=$2
+
+    printf "%0${total_digits}d" "$number" 2>/dev/null || printf "%s" "$number"
+  }
   # Get the total number of lines in the input file
   local total_lines
   total_lines=$(wc -l < "$input_file")
   # Initialize the current line number
   local current_line=1
+  # Calculate the number of digits in total_lines
+  local num_digits=${#total_lines}
 
   # Write header to the output file
   echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
@@ -558,11 +567,11 @@ process_input_file() {
     [[ "$line" =~ ^#.*$ ]] && continue
 
     # Pad the search_pattern to a width of 20 with trailing spaces
-    printf -v line_padded "%-20s" "$line"
+    printf -v line_padded "%-30s" "$line"
 
-    # Pad the line number and total lines to a width of 3 with leading zeros
-    current_line_padded=$(printf "%03d" "$current_line")
-    total_lines_padded=$(printf "%03d" "$total_lines")
+    # Then, use the pad_number function when padding current_line and total_lines
+    current_line_padded=$(pad_number "$current_line" "$num_digits")
+    total_lines_padded=$(pad_number "$total_lines" "$num_digits")
 
     log "info" "Processing search pattern: $line_padded ($current_line_padded/$total_lines_padded)"
 
