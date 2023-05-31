@@ -68,7 +68,7 @@ prepare_environment() {
   log "info" "Directories created."
   # Check if canvas-admin.sh exists in the bin directory
   log "info" "Checking if canvas-admin.sh exists and is executable..."
-  if [ ! -f "$script_path" ]; then
+  if [[ ! -f "$script_path" ]]; then
       log "info" "canvas-admin.sh not found. Attempting to download the latest version..."
       if curl --silent --fail -o "$script_path" "$GITHUB_SCRIPT_URL"; then
           log "info" "canvas-admin.sh downloaded successfully."
@@ -78,7 +78,7 @@ prepare_environment() {
       fi
   fi
   # Now check if the script is executable
-  if [ ! -x "$script_path" ]; then
+  if [[ ! -x "$script_path" ]]; then
       log "info" "canvas-admin.sh not executable. Attempting to make canvas-admin.sh executable..."
       if chmod +x "$script_path"; then
           log "info" "canvas-admin.sh is now executable."
@@ -184,7 +184,7 @@ validate_setup() {
   log "info" "Validating Canvas Admin setup..."
   # Check if the configuration file exists and contains the required variables
   config_file="${CANVAS_ADMIN_CONF}canvas.conf"
-  if [ ! -f "$config_file" ]; then
+  if [[ ! -f "$config_file" ]]; then
     log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
     return 1
   else
@@ -192,13 +192,13 @@ validate_setup() {
     # Load the configuration file
     source "$config_file"
   fi
-  if [ -z "$CANVAS_ACCESS_TOKEN" ] || [ -z "$CANVAS_INSTITUTE_URL" ] \
-    || [ -z "$CANVAS_ROOT_ACCOUNT_ID" ] || [ -z "$CANVAS_ACCOUNT_ID" ] \
-    || [ -z "$CANVAS_INSTITUTE_NAME" ] || [ -z "$CANVAS_INSTITUTE_ABBREVIATION" ] \
-    || [ -z "$CANVAS_DEFAULT_TIMEZONE" ] || [ -z "$CANVAS_ADMIN_HOME" ] \
-    || [ -z "$CANVAS_ADMIN_CONF" ] || [ -z "$CANVAS_ADMIN_LOG" ] \
-    || [ -z "$CANVAS_ADMIN_DL" ] || [ -z "$CANVAS_ADMIN_TMP" ] \
-    || [ -z "$CANVAS_ADMIN_BIN" ]; then
+  if [[ -z "$CANVAS_ACCESS_TOKEN" ]] || [[ -z "$CANVAS_INSTITUTE_URL" ]] \
+    || [[ -z "$CANVAS_ROOT_ACCOUNT_ID" ]] || [[ -z "$CANVAS_ACCOUNT_ID" ]] \
+    || [[ -z "$CANVAS_INSTITUTE_NAME" ]] || [[ -z "$CANVAS_INSTITUTE_ABBREVIATION" ]] \
+    || [[ -z "$CANVAS_DEFAULT_TIMEZONE" ]] || [[ -z "$CANVAS_ADMIN_HOME" ]] \
+    || [[ -z "$CANVAS_ADMIN_CONF" ]] || [[ -z "$CANVAS_ADMIN_LOG" ]] \
+    || [[ -z "$CANVAS_ADMIN_DL" ]] || [[ -z "$CANVAS_ADMIN_TMP" ]] \
+    || [[ -z "$CANVAS_ADMIN_BIN" ]]; then
     log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
     return 1
   else
@@ -208,7 +208,7 @@ validate_setup() {
   for dir in "${CANVAS_ADMIN_HOME}" "${CANVAS_ADMIN_BIN}" \
               "${CANVAS_ADMIN_DL}" "${CANVAS_ADMIN_TMP}" \
               "${CANVAS_ADMIN_LOG}" "${CANVAS_ADMIN_CONF}"; do
-    if [ ! -d "$dir" ]; then
+    if [[ ! -d "$dir" ]]; then
       log "error" "Required directory $dir is missing or incorrect in the Canvas Admin setup."
       return 1
     else 
@@ -235,11 +235,11 @@ generate_conf() {
   # Define the configuration file path
   local path_conf_file="${HOME}/Canvas/conf/"
   local config_file="${path_conf_file}canvas.conf"
-  if [ ! -d "$path_conf_file" ]; then
+  if [[ ! -d "$path_conf_file" ]]; then
     mkdir -p "$path_conf_file"
   fi
   # Check if the configuration file exists
-  if [ ! -f "$config_file" ]; then
+  if [[ ! -f "$config_file" ]]; then
     # Prompt the user to enter an API Access Token
     log "info" "The canvas.conf configuration file was not found. Creating a new configuration file..."
     log "info" "Please follow the instructions to generate an API Access Token:"
@@ -279,14 +279,14 @@ generate_conf() {
     log "info" "Available accounts: (use the ID number to set the account)"
     echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name) | Time Zone: \(.default_time_zone)"'
     read -rp "Enter your Canvas account ID or leave it blank to use the root account ID ($detected_root_account_id): " entered_account_id
-    if [ -n "$entered_account_id" ]; then
+    if [[ -n "$entered_account_id" ]]; then
       detected_account_id="$entered_account_id"
     else
       detected_account_id="$detected_root_account_id"
     fi
     # Find the account with the entered account ID and set the institution name and time zone
     account_info=$(echo "$response" | jq -c --arg id "$detected_account_id" '.[] | select(.id | tostring == $id)')
-    if [ -n "$account_info" ]; then
+    if [[ -n "$account_info" ]]; then
       detected_institution_name=$(echo "$account_info" | jq -r '.name')
       detected_time_zone=$(echo "$account_info" | jq -r '.default_time_zone')
     else
@@ -297,22 +297,22 @@ generate_conf() {
     # Prompt the user to confirm or modify the institution name
     log "info" "Detecting the name of your institute..."
     read -rp "Detected Institution Name is $detected_institution_name. Press Enter to accept, or type a new name: " entered_institution_name
-    if [ -n "$entered_institution_name" ]; then
+    if [[ -n "$entered_institution_name" ]]; then
       detected_institution_name="$entered_institution_name"
     fi
     # Prompt the user to confirm or modify the institution abbreviation
     log "info" "Detecting the abbreviation of your institute name..."
     log "info" "This abbreviation is used for integration with other services such as Zoom, Box, Redshelf etc."
-    detected_institute_abbreviation=$(echo "$entered_institution_name" | awk -F' ' '{ for (i=1; i<=NF; ++i) printf substr($i, 1, 1) }' | tr '[:upper:]' '[:lower:]')
+    detected_institute_abbreviation=$(echo "$detected_institution_name" | awk -F' ' '{ for (i=1; i<=NF; ++i) printf substr($i, 1, 1) }' | tr '[:upper:]' '[:lower:]')
     read -rp "Detected istitute abbreviation is ($detected_institute_abbreviation). Press Enter to accept, or type a different abbreviation: " entered_institute_abbreviation
-    if [ -n "$entered_institute_abbreviation" ]; then
+    if [[ -n "$entered_institute_abbreviation" ]]; then
       detected_institute_abbreviation="$entered_institute_abbreviation"
     fi
     # Prompt the user to confirm or modify the time zone
     log "info" "Detecting institue default timezone based on Canvas account..."
     log "info" "This timezone is used for scheduling courses and other events."
     read -rp "Detected Time Zone is $detected_time_zone. Press Enter to accept, or type a new timezone: " entered_time_zone
-    if [ -n "$entered_time_zone" ]; then
+    if [[ -n "$entered_time_zone" ]]; then
       detected_time_zone="$entered_time_zone"
     fi
     # Save the access token and institute URL in the configuration file
@@ -322,7 +322,8 @@ generate_conf() {
     config_file="${CANVAS_ADMIN_CONF}canvas.conf"
 
     # Check if the configuration file exists
-    if [ -f "$config_file" ]; then
+    echo "$config_file"
+    if [[ -f "$config_file" ]]; then
       log "warn" "The canvas.conf configuration file already exists. Overwriting it will erase the existing configuration."
 
       # Prompt the user for confirmation before overwriting the file
