@@ -35,7 +35,7 @@ log() {
       log_color="\033[31m" # Red
       ;;
     *)
-      echo "Invalid log level. Please use 'info', 'warn', or 'error'."
+      echo "Invalid log level. Please use 'info', 'warn', or 'error'." >&2
       exit 1
   esac
   # Check if the log directory exists
@@ -44,13 +44,19 @@ log() {
   fi
   # Define the log output
   log_output="[$timestamp] [$log_label] $message"
-  sleep 0.5; echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
+  sleep 0.5
+  if [ "$log_level" == "error" ]; then
+    echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log" >&2
+  else
+    echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
+  fi
 }
+
 
 prepare_environment() {
   log "info" "BEGIN: the function prepare_environment()..."
   # This function is used to prepare the environment for the canvas-admin.sh script
-  local directories=("bin" "Downloads" "tmp" "logs" "conf")
+  local directories=("bin" "downloads" "tmp" "logs" "conf" "cache")
   local canvas_home="${HOME}/Canvas"
   local script_name="canvas-admin.sh"
   local script_path="${canvas_home}/bin/${script_name}"
@@ -201,7 +207,7 @@ validate_setup() {
     || [[ -z "$CANVAS_DEFAULT_TIMEZONE" ]] || [[ -z "$CANVAS_ADMIN_HOME" ]] \
     || [[ -z "$CANVAS_ADMIN_CONF" ]] || [[ -z "$CANVAS_ADMIN_LOG" ]] \
     || [[ -z "$CANVAS_ADMIN_DL" ]] || [[ -z "$CANVAS_ADMIN_TMP" ]] \
-    || [[ -z "$CANVAS_ADMIN_BIN" ]]; then
+    || [[ -z "$CANVAS_ADMIN_BIN" ]]|| [[ -z "$CANVAS_ADMIN_CACHE" ]]; then
     log "error" "Required variables are missing or incorrect in the configuration file (canvas.conf)."
     return 1
   else
@@ -210,7 +216,7 @@ validate_setup() {
   # Check if the necessary directories exist
   for dir in "${CANVAS_ADMIN_HOME}" "${CANVAS_ADMIN_BIN}" \
               "${CANVAS_ADMIN_DL}" "${CANVAS_ADMIN_TMP}" \
-              "${CANVAS_ADMIN_LOG}" "${CANVAS_ADMIN_CONF}"; do
+              "${CANVAS_ADMIN_LOG}" "${CANVAS_ADMIN_CONF}" "${CANVAS_ADMIN_CACHE}"; do
     if [[ ! -d "$dir" ]]; then
       log "error" "Required directory $dir is missing or incorrect in the Canvas Admin setup."
       return 1
@@ -352,9 +358,10 @@ generate_conf() {
       echo "CANVAS_ADMIN_HOME=\"${HOME}/Canvas/\""
       echo "CANVAS_ADMIN_CONF=\"${HOME}/Canvas/conf/\""
       echo "CANVAS_ADMIN_LOG=\"${HOME}/Canvas/logs/\""
-      echo "CANVAS_ADMIN_DL=\"${HOME}/Canvas/Downloads/\""
+      echo "CANVAS_ADMIN_DL=\"${HOME}/Canvas/downloads/\""
       echo "CANVAS_ADMIN_TMP=\"${HOME}/Canvas/tmp/\""
       echo "CANVAS_ADMIN_BIN=\"${HOME}/Canvas/bin/\""
+      echo "CANVAS_ADMIN_CACHE=\"${HOME}/Canvas/cache/\""
 
     } >> "$config_file"
     chmod 600 "$config_file"
@@ -427,66 +434,65 @@ check_for_updates() {
   log "info" "END: the function check_for_updates()."
 }
 
-list_subaccounts() {
-  # Define the API endpoint for fetching subaccounts
-  source "$config_file"
-  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
-
-  # Initialize variables
-  subaccounts_exist=false
-
-  # Perform the API request to fetch subaccounts
-
-    log "info" "Fetching subaccounts..."
-    response=$( curl -s -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" )
-   
-    # Check if the response is a valid JSON array
-    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
-      log "error" "Failed to fetch subaccounts. Response: $response"
-      exit 1
-    fi
-
-    # Error and Exit if the response is empty
-    if [ "$response" == "[]" ]; then
-      log "error" "Failed to fetch subaccounts. Response is empty."    
-      exit 1
-    fi
-
-    # Set the flag to indicate that subaccounts exist
-    subaccounts_exist=true
-
-    # Parse the response and print the subaccounts
-    log "info" "Available subaccounts: (use the ID number to set the subaccount)"
-    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
-
-  if [ "$subaccounts_exist" = false ]; then
-    log "info" "No subaccounts found."
-  fi
-}
-
 user_search() {
-  validate_setup
-  search_pattern="$1"
+  # This function searches for users based on the search pattern and saves the results in a CSV file
+
+  # Validate the Canvas Admin setup
+  validate_setup > /dev/null
+
+  source "$config_file"
+  
+  log "info" "BEGIN: the function user_search()..."
+  
+  local search_pattern="$1"
+  local output_file
+  local response
+  local lastname
+  local firstname
+  local cached_user
   output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
+  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
+  local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
 
   log "info" "Initiating user search with pattern: $search_pattern"
+  # Check if the search pattern contains a comma
+  if [[ $search_pattern == *,* ]]; then
+    # If yes, split the search pattern into first name and last name
+    lastname=$(echo "$search_pattern" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
+    firstname=$(echo "$search_pattern" | cut -d ',' -f 2 | xargs)
 
-  # Define the API endpoint for searching users
-  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/users"
+    # Update the search pattern to "Firstname Lastname" format
+    search_pattern="${firstname} ${lastname}"
+  fi
+
+  # Check if the cache file exists
+  if [[ -f "$cache_file" ]]; then
+    # If yes, check if the user is in the cache
+    cached_user=$(grep -i "$search_pattern" "$cache_file")
+
+    if [[ -n "$cached_user" ]]; then
+      # If the user is in the cache, use the cached data
+      response="[$cached_user]"
+    fi
+  fi
 
   # Perform the API request to search for users
   log "info" "Sending API request to search for users..."
-  response=$(curl -s -X GET "$api_endpoint" \
-    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-    -H "Content-Type: application/json" \
-    -G --data-urlencode "search_term=$search_pattern" \
-    --data-urlencode "include[]=email" \
-    --data-urlencode "include[]=enrollments")
-
+   # If the user is not in the cache (or the cache file does not exist), perform the API request
+  if [[ -z "$response" ]]; then
+    # Check the exit status of the curl command
+    if ! response=$(curl -sS -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
+      -G --data-urlencode "search_term=$search_pattern" \
+      --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
+      log "error" "Failed to fetch data from the Canvas API."
+      return 1
+    fi
+    # Add the user to the cache
+    echo "$response" | jq -c '.[0]' >> "$cache_file"
+  fi
   # Check if the response is empty
-  if [ -z "$response" ] || [ "$response" == "[]" ]; then
+  if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
     log "info" "No users found matching the pattern: $search_pattern"
     return
   fi
@@ -496,7 +502,68 @@ user_search() {
   echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
   echo "$response" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$output_file"
 
-  log "info" "User search results saved to: $output_file"
+  # Display the search results
+  log "info" "User search results:"
+  jq -r '.[] | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\
+              \nINTEGRATION_ID: \(.integration_id)\
+              \nLOGIN_ID: \(.login_id)\
+              \nFIRST_NAME: \(.sortable_name | split(", ")[1])\
+              \nLAST_NAME: \(.sortable_name | split(", ")[0])\
+              \nFULL_NAME: \(.name)\
+              \nSORTABLE_NAME: \(.sortable_name)\
+              \nSHORT_NAME: \(.short_name)\
+              \nEMAIL: \(.email)\
+              \nSTATUS: \(if .enrollments != null then .enrollments[0].workflow_state else "" end)\
+              \nCREATED_BY_SIS: \(if .sis_user_id != null then "TRUE" else "FALSE" end)\n"' "$output_file"
+
+  # Prompt for download
+  while true; do
+    read -rp "Would you like to download the CSV file? (y/n) " yn
+    case $yn in
+      [Yy]* ) 
+        log "info" "You can download the CSV file from: $output_file"
+        break
+        ;;
+      [Nn]* ) 
+        log "info" "Okay, the CSV file won't be downloaded."
+        break
+        ;;
+      * ) log "error" "Please answer yes (y) or no (n).";;
+    esac
+  done
+  log "info" "END: the function user_search()."
+}
+
+process_input_file() {
+  # This function handles the case when multiple search patterns are provided in an input file
+
+  log "info" "BEGIN: the function process_input_file()..."
+
+  source "$config_file"
+
+  local input_file="$1"
+
+  while read -r line; do
+    log "info" "Processing search pattern: $line"
+    user_search "$line"
+  done < "$input_file"
+
+  # Prompt for download
+  while true; do
+    read -rp "Would you like to download the CSV files? (y/n) " yn
+    case $yn in
+      [Yy]* ) 
+        log "info" "You can download the CSV files from: $CANVAS_ADMIN_DL"
+        break
+        ;;
+      [Nn]* ) 
+        log "info" "Okay, the CSV files won't be downloaded."
+        break
+        ;;
+      * ) log "error" "Please answer yes (y) or no (n).";;
+    esac
+  done
+  log "info" "END: the function process_input_file()."
 }
 
 get_user_id() {
@@ -667,6 +734,45 @@ get_term_id() {
   echo "$term_id"
 }
 
+-list_subaccounts() {
+  # Define the API endpoint for fetching subaccounts
+  source "$config_file"
+  api_endpoint="$CANVAS_INSTITUTE_URL/accounts/$CANVAS_ACCOUNT_ID/sub_accounts"
+
+  # Initialize variables
+  subaccounts_exist=false
+
+  # Perform the API request to fetch subaccounts
+
+    log "info" "Fetching subaccounts..."
+    response=$( curl -s -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" )
+   
+    # Check if the response is a valid JSON array
+    if ! echo "$response" | jq 'if type=="array" then true else false end' -e >/dev/null; then
+      log "error" "Failed to fetch subaccounts. Response: $response"
+      exit 1
+    fi
+
+    # Error and Exit if the response is empty
+    if [ "$response" == "[]" ]; then
+      log "error" "Failed to fetch subaccounts. Response is empty."    
+      exit 1
+    fi
+
+    # Set the flag to indicate that subaccounts exist
+    subaccounts_exist=true
+
+    # Parse the response and print the subaccounts
+    log "info" "Available subaccounts: (use the ID number to set the subaccount)"
+    echo "$response" | jq -r '.[] | "ID: \(.id) | Name: \(.name)"'
+
+  if [ "$subaccounts_exist" = false ]; then
+    log "info" "No subaccounts found."
+  fi
+}
+
 create_single_course() {
   course_name="$1"
   course_code="$2"
@@ -826,11 +932,16 @@ while [[ "$#" -gt 0 ]]; do
       fi
       exit 0
       ;;
-    user) # search for users
-      shift
-      user_search "$1"
-      shift
+      user) # search for users
+        shift
+        if [[ -f "$1" ]]; then
+          process_input_file "$1"
+        else
+          user_search "$1"
+        fi
+        shift
       ;;
+
     createcourse) # create a new course
       shift
       if [[ -n "$1" ]] && [[ -f "$1" ]]; then
