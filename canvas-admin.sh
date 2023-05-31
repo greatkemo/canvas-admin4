@@ -544,19 +544,19 @@ process_input_file() {
   # Get the total number of lines in the input file
   local total_lines
   total_lines=$(wc -l < "$input_file")
-
   # Initialize the current line number
   local current_line=1
+  # Pad the line number and total lines to a width of 4 with leading zeros
+  current_line_padded=$(printf "%04d" "$current_line")
+  total_lines_padded=$(printf "%04d" "$total_lines")
 
   # Write header to the output file
   echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
   # Process each search pattern
   while read -r line; do
-    log "info" "Processing search pattern: $line ($current_line/$total_lines)"
+    log "info" "Processing search pattern: $line ($current_line_padded/$total_lines_padded)"
     # Suppress logs and download prompt from the user_search() function    
-    if user_search "$line" "suppress" "$output_file" >/dev/null; then
-      log "info" "Search pattern: $line processed successfully."
-    else
+    if ! user_search "$line" "suppress" "$output_file" >/dev/null; then
       log "error" "Failed to process search pattern: $line."
     fi
 
