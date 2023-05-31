@@ -188,7 +188,7 @@ validate_setup() {
     log "error" "Configuration file (canvas.conf) is missing. Expected path: $config_file"
     return 1
   else
-    log "info" "Configuration file (canvas.conf) found and validated."
+    log "info" "Configuration file (canvas.conf) found."
     # Load the configuration file
     source "$config_file"
   fi
@@ -215,9 +215,8 @@ validate_setup() {
       log "info" "Required directory $dir found and validated."
     fi
   done
-  log "info" "Required directories found and validated."
-  # Check if the necessary files exist
-  # Check if canvas-admin.sh exists and is executable
+  log "info" "Directories validation completed successfully."
+  # Check if the necessary files exist and if canvas-admin.sh exists and is executable
   if ! "${CANVAS_ADMIN_BIN}canvas-admin.sh" true 2>/dev/null; then
       log "error" "canvas-admin.sh is missing or not executable in the Canvas Admin setup. Expected path: ${CANVAS_ADMIN_BIN}canvas-admin.sh"
   return 1
@@ -254,11 +253,9 @@ generate_conf() {
     # Define the API endpoint to fetch the root account  
     api_endpoint="https://$entered_url/api/v1/accounts"
     # Perform the API request to fetch the root account
-    response=$(curl -s -X GET --fail "$api_endpoint" \
+    if ! response=$(curl -s -X GET --fail "$api_endpoint" \
       -H "Authorization: Bearer $entered_token" \
-      -H "Content-Type: application/json")
-    # Check the exit status of the last command (curl) 
-    if [ $? -ne 0 ]; then
+      -H "Content-Type: application/json"); then
       log "error" "Failed to fetch data from the Canvas API."
       exit 1
     fi
@@ -794,7 +791,6 @@ if [ ! -f "${HOME}/Canvas/.done" ]; then
   generate_conf
 
   # Validate the setup and create the .done file
-  source "$config_file"
   if ! validate_setup; then
     log "error" "Validation failed. Please check the setup."
     exit 1
