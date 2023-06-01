@@ -12,6 +12,7 @@ log() {
   # Example: log "info" "This is an info message"
   # Example: log "warn" "This is a warning message"
   # Example: log "error" "This is an error message"
+  # Example: log "debug" "This is a debug message"
   
   # Define the log level and message
   log_level="$1"
@@ -36,8 +37,12 @@ log() {
       log_label="ERROR"
       log_color="\033[31m" # Red
       ;;
+    debug)
+      log_label="DEBUG"
+      log_color="\033[36m" # Cyan
+      ;;
     *)
-      echo "Invalid log level. Please use 'info', 'warn', or 'error'." >&2
+      echo "Invalid log level. Please use 'info', 'warn', 'error', or 'debug'." >&2
       exit 1
   esac
   # Check if the log directory exists
@@ -49,6 +54,8 @@ log() {
   sleep 0.5
   if [ "$log_level" == "error" ]; then
     echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log" >&2
+  elif [ "$log_level" == "debug" ]; then
+    echo -e "${log_color}${log_output}\033[0m" >> "${CANVAS_ADMIN_LOG}canvas-admin.log" # Only log debug messages to the log file, not to the console
   else
     echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log"
   fi
