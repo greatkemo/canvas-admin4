@@ -471,32 +471,25 @@ download_all_teachers() {
       -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id")
     log "debug" "Page $page response: $response"
 
-    if [[ -z "$response" ]]; then
+    if [[ "$response" == "null" ]]; then
       null_count=$((null_count + 1))
       if [[ $null_count -eq 3 ]]; then
         break
       fi
     else
-      if [[ "$response" == "[]" ]]; then
-        null_count=$((null_count + 1))
-        if [[ $null_count -eq 3 ]]; then
-          break
-        fi
-      else
-        total_pages=$(echo "$response" | jq -r '.[] | .total_pages')
-        total_teachers_on_page=$(echo "$response" | jq -r 'length')
-        total_teachers=$((total_teachers + total_teachers_on_page))
-
-        echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
-        
-        printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
-
-        null_count=0
+      total_pages=$(echo "$response" | jq -r '.[] | .total_pages')
+      if [[ "$total_pages" == "null" ]]; then
+        break
       fi
-    fi
 
-    if [[ $page -ge $total_pages ]]; then
-      break
+      total_teachers_on_page=$(echo "$response" | jq -r 'length')
+      total_teachers=$((total_teachers + total_teachers_on_page))
+
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
+      
+      printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
+
+      null_count=0
     fi
 
     page=$((page + 1))
