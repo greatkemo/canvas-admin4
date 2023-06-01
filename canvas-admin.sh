@@ -463,6 +463,7 @@ download_all_teachers() {
 
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "${CANVAS_ADMIN_CACHE}user_directory.csv"
   
+  local null_count=0
   while true; do
     log "info" "Fetching page $page from API..."
     response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
@@ -474,12 +475,21 @@ download_all_teachers() {
       total_pages=$(echo "$response" | jq -r '.[] | .total_pages')
     fi
 
-    total_teachers_on_page=$(echo "$response" | jq -r 'length')
-    total_teachers=$((total_teachers + total_teachers_on_page))
+    if [[ -z "$response" || "$response" == "[]" ]]; then
+      null_count=$((null_count + 1))
+      if [[ $null_count -eq 3 ]]; then
+        break
+      fi
+    else
+      total_teachers_on_page=$(echo "$response" | jq -r 'length')
+      total_teachers=$((total_teachers + total_teachers_on_page))
 
-    echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
-    
-    printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
+      
+      printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
+
+      null_count=0
+    fi
 
     if [[ $page -ge $total_pages ]]; then
       break
