@@ -436,51 +436,43 @@ check_for_updates() {
 }
 
 download_all_teachers() {
-  source "$CONF_FILE"
   log "info" "BEGIN: the function download_all_teachers()..."
-  
-  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
+
   local page=1
   local per_page=100
+  local total_pages
   local total_teachers=0
-  local cache_file="${CANVAS_ADMIN_CACHE}user_directory.json"
-  local teacher_count
-  local teachers
-  local response
-  local has_more_pages=true
 
-  while [[ "$has_more_pages" == "true" ]]; do
-    log "info" "Fetching page $page from API..."
-    response=$(curl -sS -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
-      --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
-      --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments")
+  local teacher_role_id
+  teacher_role_id=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles" -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" | jq '.[] | select(.label == "Teacher") | .id')
 
-    # Check if the response is valid
-    if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
-      log "error" "Failed to fetch data from the Canvas API."
-      return 1
-    fi
-
-    teachers=$(echo "$response" | jq -r '.users[] | select(.enrollments[0].role == "teacher")')
-    teacher_count=$(echo "$teachers" | jq -r '. | length')
-
-    if ((teacher_count > 0)); then
-      total_teachers=$((total_teachers + teacher_count))
-      printf -v total_teachers_padded "%04d" "$total_teachers"
-      log "info" "Adding teachers to cache: $total_teachers_padded"
-
-      echo "$teachers" >> "$cache_file"
-    fi
-
-    # Check if there are more pages
-    has_more_pages=$(echo "$response" | jq -r '.meta.pagination.more_pages')
-
-    if [[ "$has_more_pages" == "true" ]]; then
-      ((page++))
-    fi
-  done
+  echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "${CANVAS_ADMIN_CACHE}user_directory.csv"
   
+  while true; do
+    log "info" "Fetching page $page from API..."
+    response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/users" \
+      -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id")
+
+    if [[ -z "$total_pages" ]]; then
+      total_pages=$(echo "$response" | jq -r '.meta.pagination.total_pages')
+    fi
+
+    total_teachers_on_page=$(echo "$response" | jq -r '.users | length')
+    total_teachers=$((total_teachers + total_teachers_on_page))
+
+    echo "$response" | jq -r '.users[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
+    
+    printf "%s/%s (%s)\n" "$page" "$total_pages" "$(printf "%0*d" ${#total_pages} $total_teachers)"
+
+    if [[ $page -ge $total_pages ]]; then
+      break
+    fi
+
+    page=$((page + 1))
+  done
+
+  log "info" "Downloaded details of $total_teachers teachers to ${CANVAS_ADMIN_CACHE}user_directory.csv"
   log "info" "END: the function download_all_teachers()."
 }
 
@@ -500,7 +492,7 @@ user_search() {
   local firstname
   local cached_user
   
-  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
+  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
 
   log "info" "Initiating user search with pattern: $search_pattern"
