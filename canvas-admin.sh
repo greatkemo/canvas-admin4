@@ -444,7 +444,11 @@ download_all_teachers() {
   local total_teachers=0
 
   local teacher_role_id
-  teacher_role_id=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles" -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" | jq '.[] | select(.label == "Teacher") | .id')
+  response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles" \
+    -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
+  log "debug" "Role response: $response"
+  teacher_role_id=$(echo "$response" | jq '.[] | select(.label == "Teacher") | .id')
+  log "debug" "Teacher role ID: $teacher_role_id"
 
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "${CANVAS_ADMIN_CACHE}user_directory.csv"
   
@@ -453,6 +457,7 @@ download_all_teachers() {
     response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/users" \
       -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
       -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id")
+    log "debug" "Page $page response: $response"
 
     if [[ -z "$total_pages" ]]; then
       total_pages=$(echo "$response" | jq -r '.meta.pagination.total_pages')
