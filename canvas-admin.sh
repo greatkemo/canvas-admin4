@@ -484,7 +484,7 @@ download_all_teachers() {
         fi
       else
         log "debug" "Setting total_pages.."
-        total_pages=$(echo "$response" | jq -r '.[] | .total_pages')
+        total_pages=$(echo "$response" | jq -r '.[0].total_pages')
         log "debug" "total_pages: $total_pages"
         log "debug" "Setting total_teachers_on_page.."
         total_teachers_on_page=$(echo "$response" | jq -r 'length')
@@ -502,7 +502,7 @@ download_all_teachers() {
       fi
     fi
 
-    if [[ $page -ge $total_pages ]]; then
+    if [[ -z "$total_pages" ]] || [[ $page -ge $total_pages ]]; then
       break
     fi
 
