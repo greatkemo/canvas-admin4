@@ -450,7 +450,6 @@ download_all_teachers() {
 
   local page=1
   local per_page=100
-  local total_pages
   local total_teachers=0
   local teacher_role_id
 
@@ -462,51 +461,34 @@ download_all_teachers() {
   log "debug" "Teacher role ID: $teacher_role_id"
 
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "${CANVAS_ADMIN_CACHE}user_directory.csv"
-  
-  local null_count=0
+
   while true; do
     log "info" "Fetching page $page from API..."
-    response=$(curl -s -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
+    response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
       -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
       -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id" --fail)
     log "debug" "Page $page response: $response"
 
     if [[ -z "$response" ]]; then
-      null_count=$((null_count + 1))
-      if [[ $null_count -eq 3 ]]; then
+      log "warn" "No response received for page $page. Skipping..."
+      break
+    else
+      log "debug" "Setting total_teachers_on_page.."
+      total_teachers_on_page=$(echo "$response" | jq -r 'length')
+      log "debug" "total_teachers_on_page: $total_teachers_on_page"
+      if [[ "$total_teachers_on_page" -eq 0 ]]; then
+        log "info" "No teachers found on page $page. Stopping iteration."
         break
       fi
-    else
-      if [[ "$response" == "[]" ]]; then
-        null_count=$((null_count + 1))
-        if [[ $null_count -eq 3 ]]; then
-          break
-        fi
-      else
-        log "debug" "Setting total_pages.."
-        total_pages=$(echo "$response" | jq -r '.[0].total_pages')
-        log "debug" "total_pages: $total_pages"
-        log "debug" "Setting total_teachers_on_page.."
-        total_teachers_on_page=$(echo "$response" | jq -r 'length')
-        log "debug" "total_teachers_on_page: $total_teachers_on_page"
-        log "debug" "Setting total_teachers.."
-        total_teachers=$((total_teachers + total_teachers_on_page))
-        log "debug" "total_teachers: $total_teachers"
-        log "debug" "Writing to CSV file.."
-        echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
-        log "debug" "CSV file written to."
-        log "info" "Page $page of $total_pages downloaded. $total_teachers teachers downloaded so far."
-        printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
-
-        null_count=0
-      fi
+      log "debug" "Setting total_teachers.."
+      total_teachers=$((total_teachers + total_teachers_on_page))
+      log "debug" "total_teachers: $total_teachers"
+      log "debug" "Writing to CSV file.."
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
+      log "debug" "CSV file written to."
+      log "info" "Page $page downloaded. $total_teachers teachers downloaded so far."
+      page=$((page + 1))
     fi
-
-    if [[ -z "$total_pages" ]] || [[ $page -ge $total_pages ]]; then
-      break
-    fi
-
-    page=$((page + 1))
   done
 
   log "info" "Downloaded details of $total_teachers teachers to ${CANVAS_ADMIN_CACHE}user_directory.csv"
