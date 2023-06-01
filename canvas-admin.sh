@@ -442,35 +442,24 @@ download_all_teachers() {
   local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
   local page=1
   local per_page=100
-  local total_pages
   local total_teachers=0
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.json"
   local teacher_count
   local teachers
   local response
-  
-  # Fetch the first page to get the total_pages
-  log "info" "Fetching page $page from API..."
-  response=$(curl -sS -X GET "$api_endpoint" \
+  local has_more_pages=true
+
+  while [[ "$has_more_pages" == "true" ]]; do
+    log "info" "Fetching page $page from API..."
+    response=$(curl -sS -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
       --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
       --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments")
 
-  # Check if the response is valid
-  if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
-    log "error" "Failed to fetch data from the Canvas API."
-    return 1
-  fi
-
-  total_pages=$(echo "$response" | jq -r '.meta.pagination.total_pages')
-
-  while ((page <= total_pages)); do
-    if ((page > 1)); then
-      log "info" "Fetching page $page from API..."
-      response=$(curl -sS -X GET "$api_endpoint" \
-        -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
-        --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
-        --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments")
+    # Check if the response is valid
+    if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
+      log "error" "Failed to fetch data from the Canvas API."
+      return 1
     fi
 
     teachers=$(echo "$response" | jq -r '.users[] | select(.enrollments[0].role == "teacher")')
@@ -479,13 +468,17 @@ download_all_teachers() {
     if ((teacher_count > 0)); then
       total_teachers=$((total_teachers + teacher_count))
       printf -v total_teachers_padded "%04d" "$total_teachers"
-      printf -v total_pages_padded "%04d" "$total_pages"
-      log "info" "Adding teachers to cache: $total_teachers_padded/$total_pages_padded"
+      log "info" "Adding teachers to cache: $total_teachers_padded"
 
       echo "$teachers" >> "$cache_file"
     fi
 
-    ((page++))
+    # Check if there are more pages
+    has_more_pages=$(echo "$response" | jq -r '.meta.pagination.more_pages')
+
+    if [[ "$has_more_pages" == "true" ]]; then
+      ((page++))
+    fi
   done
   
   log "info" "END: the function download_all_teachers()."
