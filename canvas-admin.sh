@@ -471,7 +471,7 @@ download_all_teachers() {
     log "debug" "Page $page response: $response"
 
     if [[ -z "$total_pages" ]]; then
-      total_pages=$(echo "$response" | jq -r '.meta.pagination.total_pages')
+      total_pages=$(echo "$response" | jq -r '.[] | .total_pages')
     fi
 
     total_teachers_on_page=$(echo "$response" | jq -r 'length')
