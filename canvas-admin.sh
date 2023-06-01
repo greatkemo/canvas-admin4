@@ -454,8 +454,8 @@ download_all_teachers() {
   local total_teachers=0
 
   local teacher_role_id
-  log "info" "Fetching teacher role ID from API. ${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles"
-  response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles" \
+  log "info" "Fetching teacher role ID from API. ${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles"
+  response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles" \
     -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
   log "debug" "Role response: $response"
   teacher_role_id=$(echo "$response" | jq '.[] | select(.label == "Teacher") | .id')
@@ -465,7 +465,7 @@ download_all_teachers() {
   
   while true; do
     log "info" "Fetching page $page from API..."
-    response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/users" \
+    response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
       -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
       -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id")
     log "debug" "Page $page response: $response"
