@@ -453,7 +453,7 @@ download_all_teachers() {
   local total_pages
   local total_teachers=0
   local teacher_role_id
-  
+
   log "info" "Fetching teacher role ID from API. ${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles"
   response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles" \
     -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
@@ -466,9 +466,9 @@ download_all_teachers() {
   local null_count=0
   while true; do
     log "info" "Fetching page $page from API..."
-    response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
+    response=$(curl -s -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
       -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id" 2>/dev/null)
+      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id" --fail)
     log "debug" "Page $page response: $response"
 
     if [[ -z "$response" ]]; then
