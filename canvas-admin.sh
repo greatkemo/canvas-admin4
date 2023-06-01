@@ -443,6 +443,9 @@ check_for_updates() {
 }
 
 download_all_teachers() {
+  # Load the configuration file
+  source "$CONF_FILE"
+
   log "info" "BEGIN: the function download_all_teachers()..."
 
   local page=1
@@ -451,6 +454,7 @@ download_all_teachers() {
   local total_teachers=0
 
   local teacher_role_id
+  log "info" "Fetching teacher role ID from API. ${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles"
   response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/api/v1/accounts/${CANVAS_ACCOUNT_ID}/roles" \
     -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
   log "debug" "Role response: $response"
