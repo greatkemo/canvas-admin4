@@ -458,7 +458,7 @@ download_all_teachers() {
   response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles" \
     -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
   log "debug" "Role response: $response"
-  teacher_role_id=$(echo "$response" | jq '.[] | select(.label == "Teacher") | .id')
+  teacher_role_id=$(echo "$response" | jq -r '.[] | select(.label == "Teacher") | .id')
   log "debug" "Teacher role ID: $teacher_role_id"
 
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "${CANVAS_ADMIN_CACHE}user_directory.csv"
@@ -474,12 +474,12 @@ download_all_teachers() {
       total_pages=$(echo "$response" | jq -r '.meta.pagination.total_pages')
     fi
 
-    total_teachers_on_page=$(echo "$response" | jq -r '.users | length')
+    total_teachers_on_page=$(echo "$response" | jq -r 'length')
     total_teachers=$((total_teachers + total_teachers_on_page))
 
-    echo "$response" | jq -r '.users[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
+    echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
     
-    printf "%s/%s (%s)\n" "$page" "$total_pages" "$(printf "%0*d" ${#total_pages} $total_teachers)"
+    printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
 
     if [[ $page -ge $total_pages ]]; then
       break
