@@ -483,12 +483,19 @@ download_all_teachers() {
           break
         fi
       else
+        log "debug" "Setting total_pages.."
         total_pages=$(echo "$response" | jq -r '.[] | .total_pages')
+        log "debug" "total_pages: $total_pages"
+        log "debug" "Setting total_teachers_on_page.."
         total_teachers_on_page=$(echo "$response" | jq -r 'length')
+        log "debug" "total_teachers_on_page: $total_teachers_on_page"
+        log "debug" "Setting total_teachers.."
         total_teachers=$((total_teachers + total_teachers_on_page))
-
+        log "debug" "total_teachers: $total_teachers"
+        log "debug" "Writing to CSV file.."
         echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "${CANVAS_ADMIN_CACHE}user_directory.csv"
-        
+        log "debug" "CSV file written to."
+        log "info" "Page $page of $total_pages downloaded. $total_teachers teachers downloaded so far."
         printf "%s/%s (%0*d)\n" "$page" "$total_pages" "${#total_pages}" "$total_teachers"
 
         null_count=0
