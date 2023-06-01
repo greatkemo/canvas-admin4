@@ -435,6 +435,59 @@ check_for_updates() {
   log "info" "END: the function check_for_updates()."
 }
 
+download_all_teachers() {
+  source "$CONF_FILE"
+
+  log "info" "BEGIN: the function download_all_teachers()..."
+
+  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
+  local cache_file="${CANVAS_ADMIN_CACHE}teacher_directory.csv"
+
+  # Remove cache file if exists
+  [[ -f "$cache_file" ]] && rm "$cache_file"
+
+  local page=1
+  local per_page=100
+
+  # Initialize the total number of teachers
+  local total_teachers=0
+
+  # Write header to the cache file
+  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$cache_file"
+
+  while true; do
+    log "info" "Fetching page $page from API..."
+
+    # Fetch users from API
+    local response
+    if ! response=$(curl -sS -X GET "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
+      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
+      log "error" "Failed to fetch data from the Canvas API."
+      return 1
+    fi
+
+    # Filter teachers from the response
+    local teachers
+    teachers=$(echo "$response" | jq -c '[.[] | select(.enrollments[].type=="Teacher")]')
+
+    if [[ "$teachers" == "[]" ]]; then
+      # If the response is empty, break the loop
+      break
+    else
+      # Otherwise, add the teachers to the cache and increment the page number
+      echo "$teachers" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$cache_file"
+      ((total_teachers += $(echo "$teachers" | jq '. | length')))
+      printf "Downloaded %04d teachers\r" "$total_teachers"
+    fi
+    ((page++))
+  done
+
+  printf "\n"
+  log "info" "Successfully downloaded all teachers to the cache file."
+  log "info" "END: the function download_all_teachers()."
+}
+
 user_search() {
   # This function searches for users based on the search pattern and saves the results in a CSV file
 
@@ -967,18 +1020,20 @@ while [[ "$#" -gt 0 ]]; do
       fi
       exit 0
       ;;
-      user) # search for users
-        shift
-        if [[ -f "$1" ]]; then
-          validate_setup > /dev/null
-          process_input_file "$1"
-        else
-          validate_setup > /dev/null
-          user_search "$1"
-        fi
-        shift
+    user) # search for users
+      shift
+      if [[ "$1" == "-download" ]]; then
+        validate_setup > /dev/null
+        download_all_teachers
+      elif [[ -f "$1" ]]; then
+        validate_setup > /dev/null
+        process_input_file "$1"
+      else
+        validate_setup > /dev/null
+        user_search "$1"
+      fi
+      shift
       ;;
-
     createcourse) # create a new course
       shift
       if [[ -n "$1" ]] && [[ -f "$1" ]]; then
