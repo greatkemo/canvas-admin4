@@ -452,8 +452,8 @@ download_all_teachers() {
   local per_page=100
   local total_pages
   local total_teachers=0
-
   local teacher_role_id
+  
   log "info" "Fetching teacher role ID from API. ${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles"
   response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles" \
     -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
