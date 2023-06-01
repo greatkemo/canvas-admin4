@@ -466,7 +466,16 @@ download_all_teachers() {
     log "info" "Fetching page $page from API..."
     response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
       -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "role_filter_id=$teacher_role_id" --fail)
+      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
+      --data-urlencode "role_filter_id=$teacher_role_id" \
+      --data-urlencode "include[]=canvas_user_id" \
+      --data-urlencode "include[]=user_id" \
+      --data-urlencode "include[]=login_id" \
+      --data-urlencode "include[]=full_name" \
+      --data-urlencode "include[]=sortable_name" \
+      --data-urlencode "include[]=short_name" \
+      --data-urlencode "include[]=email" \
+      --fail)
     log "debug" "Page $page response: $response"
 
     if [[ -z "$response" ]]; then
