@@ -437,54 +437,57 @@ check_for_updates() {
 
 download_all_teachers() {
   source "$CONF_FILE"
-
   log "info" "BEGIN: the function download_all_teachers()..."
-
+  
   local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
-  local cache_file="${CANVAS_ADMIN_CACHE}teacher_directory.csv"
-
-  # Remove cache file if exists
-  [[ -f "$cache_file" ]] && rm "$cache_file"
-
   local page=1
   local per_page=100
-
-  # Initialize the total number of teachers
+  local total_pages
   local total_teachers=0
-
-  # Write header to the cache file
-  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$cache_file"
-
-  while true; do
-    log "info" "Fetching page $page from API..."
-
-    # Fetch users from API
-    local response
-    if ! response=$(curl -sS -X GET "$api_endpoint" \
+  local cache_file="${CANVAS_ADMIN_CACHE}user_directory.json"
+  local teacher_count
+  local teachers
+  local response
+  
+  # Fetch the first page to get the total_pages
+  log "info" "Fetching page $page from API..."
+  response=$(curl -sS -X GET "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
-      -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
-      log "error" "Failed to fetch data from the Canvas API."
-      return 1
+      --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
+      --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments")
+
+  # Check if the response is valid
+  if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
+    log "error" "Failed to fetch data from the Canvas API."
+    return 1
+  fi
+
+  total_pages=$(echo "$response" | jq -r '.meta.pagination.total_pages')
+
+  while ((page <= total_pages)); do
+    if ((page > 1)); then
+      log "info" "Fetching page $page from API..."
+      response=$(curl -sS -X GET "$api_endpoint" \
+        -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
+        --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
+        --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments")
     fi
 
-    # Filter teachers from the response
-    local teachers
-    teachers=$(echo "$response" | jq -c '[.[] | select(.enrollments[].type=="Teacher")]')
+    teachers=$(echo "$response" | jq -r '.users[] | select(.enrollments[0].role == "teacher")')
+    teacher_count=$(echo "$teachers" | jq -r '. | length')
 
-    if [[ "$teachers" == "[]" ]]; then
-      # If the response is empty, break the loop
-      break
-    else
-      # Otherwise, add the teachers to the cache and increment the page number
-      echo "$teachers" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$cache_file"
-      ((total_teachers += $(echo "$teachers" | jq '. | length')))
-      printf "Downloaded %04d teachers\r" "$total_teachers"
+    if ((teacher_count > 0)); then
+      total_teachers=$((total_teachers + teacher_count))
+      printf -v total_teachers_padded "%04d" "$total_teachers"
+      printf -v total_pages_padded "%04d" "$total_pages"
+      log "info" "Adding teachers to cache: $total_teachers_padded/$total_pages_padded"
+
+      echo "$teachers" >> "$cache_file"
     fi
+
     ((page++))
   done
-
-  printf "\n"
-  log "info" "Successfully downloaded all teachers to the cache file."
+  
   log "info" "END: the function download_all_teachers()."
 }
 
