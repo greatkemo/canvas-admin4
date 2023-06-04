@@ -670,22 +670,13 @@ file_user_search() {
   
   # Parse the response and create the CSV file
   log "info" "Parsing response and generating CSV file..."
-  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+  echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"email\"" > "$output_file"
   # Process each search pattern
   log "info" "Processing each search pattern..."
   while read -r line; do
     log "debug" "Processing search pattern: $line"
     # Skip if line starts with a hash (#) character of if it is empty
     [[ -z "${line// }" || "$line" =~ ^\#.*$ ]] && continue
-    # Pad the search_pattern to a width of 20 with trailing spaces
-    printf -v line_padded "%-30s" "$line"
-    # Then, use the pad_number function when padding current_line and total_lines
-    current_line_padded=$(pad_number "$current_line" "$num_digits")
-    total_lines_padded=$(pad_number "$total_lines" "$num_digits")
-    # Display the current line number and the total number of lines
-    log "info" "Processing $line: $line_padded ($current_line_padded of $total_lines_padded)"
-        # Check if the search pattern contains a comma
-    log "debug" "Checking if the search pattern contains a comma..."
     if [[ $line == *,* ]]; then
       log "debug" "Search pattern contains a comma."
       # If yes, split the search pattern into first name and last name
@@ -696,6 +687,15 @@ file_user_search() {
       line="${firstname} ${lastname}" 
       log "debug" "Search pattern updated to: $line"
     fi
+    # Pad the search_pattern to a width of 20 with trailing spaces
+    printf -v line_padded "%-30s" "$line"
+    # Then, use the pad_number function when padding current_line and total_lines
+    current_line_padded=$(pad_number "$current_line" "$num_digits")
+    total_lines_padded=$(pad_number "$total_lines" "$num_digits")
+    # Display the current line number and the total number of lines
+    log "info" "Processing $line_padded :($current_line_padded/$total_lines_padded)"
+    # Check if the search pattern contains a comma
+    log "debug" "Checking if the search pattern contains a comma..."
     # Check if the cache file exists
     log "debug" "Checking if the cache file exists..."
     if [[ -f "$cache_file" ]]; then
