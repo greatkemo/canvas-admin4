@@ -663,9 +663,20 @@ user_search_singleuser() {
   log "info" "BEGIN: the function user_search_singleuser()..."
 
   local output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
+  local search_pattern
 
-  log "info" "Please enter the search pattern:"
-  read -r search_pattern
+  # Check if the search pattern is missing or not provided
+  if [[ -z "$1" ]]; then
+    log "info" "Please enter the search pattern:"
+    read -r search_pattern
+  else
+    search_pattern="$1"
+  fi
+
+  # Check if the search pattern is missing double quotes, and add them if needed
+  if [[ $search_pattern != \"*\"*\" ]]; then
+    search_pattern="\"$search_pattern\""
+  fi
 
   # Define a function to pad a number with leading zeros
   pad_number() {
