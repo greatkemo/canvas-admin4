@@ -514,99 +514,134 @@ download_all_teachers() {
   log "info" "END: the function download_all_teachers()."
 }
 
-user_search() {
-  # This function performs a user search based on the search pattern and saves the results in a CSV file
-  # Load the configuration file
+input_user_search() {
+  # This function searches for users based on the search pattern and saves the results in a CSV file
   source "$CONF_FILE"
   
-  log "info" "BEGIN: the function user_search()..."
+  log "info" "BEGIN: the function manul_user_search()..."
   
   local search_pattern="$1"
-  local output_file="${2:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
+  local output_file="${3:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
 
-  local cached_response
-  local api_response
+  local response
+  local lastname
+  local firstname
+  local cached_user
   
   local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
 
   log "info" "Initiating user search with pattern: $search_pattern"
-
   # Check if the cache file exists
+  log "debug" "Checking if the cache file exists..."
   if [[ -f "$cache_file" ]]; then
+    log "debug" "Cache file exists." 
     # If yes, check if the user is in the cache
-    cached_response=$(grep -i "$search_pattern" "$cache_file")
+    log "debug" "Checking if the user is in the cache..."
+    cached_user=$(grep -i "$search_pattern" "$cache_file")
 
-    if [[ -n "$cached_response" ]]; then
+    if [[ -n "$cached_user" ]]; then
       # If the user is in the cache, use the cached data
-      log "debug" "User found in cache. Using cached data."
-      response="[$cached_response]"
+      log "debug" "User found in the cache."
+      user_in_cache="true"
+      response="$cached_user"
     fi
   fi
-
-  # Perform the API request to search for users
-  log "info" "Sending API request to search for users..."
-  
   # If the user is not in the cache (or the cache file does not exist), perform the API request
-  if [[ -z "$cached_response" ]]; then
+  if [[ -z "$response" ]]; then
+    log "debug" "User not found in the cache."
     # Check the exit status of the curl command
-    if ! api_response=$(curl -sS -X GET "$api_endpoint" \
-      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" -H "Content-Type: application/json" \
+    # Check if the search pattern contains a comma
+    log "debug" "Checking if the search pattern contains a comma..."
+    if [[ $search_pattern == *,* ]]; then
+      log "debug" "Search pattern contains a comma."
+      # If yes, split the search pattern into first name and last name
+      log "debug" "Splitting the search pattern into first name and last name..."
+      lastname=$(echo "$search_pattern" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
+      firstname=$(echo "$search_pattern" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
+      # Update the search pattern to "Firstname Lastname" format
+      search_pattern="${firstname} ${lastname}" 
+      log "debug" "Search pattern updated to: $search_pattern"
+    fi
+    # Perform the API request to search for user(s)
+    log "info" "Sending API request to search for user..."
+    if ! response=$(curl -sS -X GET "$api_endpoint" \
+      -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
       -G --data-urlencode "search_term=$search_pattern" \
       --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
       log "error" "Failed to fetch data from the Canvas API."
       return 1
     fi
-
-    # Add the user to the cache if it's not already present
-    if [[ -z "$cached_response" ]]; then
-      echo "$api_response" | jq -c '.[]' >> "$cache_file"
-    fi
+    # Add the user to the cache
+    log "debug" "Adding the user to the cache..."
+    echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "$cache_file"
   fi
-
   # Check if the response is empty
-  if [[ -z "$api_response" ]] || [[ "$api_response" == "[]" ]]; then
+  if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
     log "info" "No users found matching the pattern: $search_pattern"
     return
   fi
 
   # Parse the response and create the CSV file
   log "info" "Parsing API response and generating CSV file..."
-  echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "$output_file"
-  echo "$api_response" | jq -r '. | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "$output_file"
+  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+  if [[ "$user_in_cache" == "true" ]]; then
+    log "debug" "User found in cache."
+    echo "$response" >> "$output_file"
+  else
+    log "debug" "User not found in cache. Using API data."
+    echo "$response" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$output_file"
+  fi
 
-  log "info" "User search results:"
-  echo "$api_response" | jq -r '. | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nSORTABLE_NAME: \(.sortable_name)\nSHORT_NAME: \(.short_name)\nEMAIL: \(.email)\n"'
+  # Display the search results
+  if [[ "$user_in_cache" == "true" ]]; then
+    log "info" "User search results (from cache):"
+    awk 'BEGIN { FS=","; OFS="," } NR>1 { print "CANVAS_USER_ID:", $1; print "USER_ID:", $2; print "LOGIN_ID:", $3; print "FULL_NAME:", $4; print "SORTABLE_NAME:", $5; print "SHORT_NAME:", $6; print "EMAIL:", $7; print "" }' <<< "$cached_user"
+  else
+    log "info" "User search results (from API):"
+    echo "$response" | jq -r '. | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nSORTABLE_NAME: \(.sortable_name)\nSHORT_NAME: \(.short_name)\nEMAIL: \(.email)\n"'
+  fi
 
-  log "info" "You can download the CSV file from: $output_file"
-  log "info" "END: the function user_search()."
+  # Prompt for download
+  while true; do
+    read -rp "Would you like to download the CSV file? (y/n) " yn
+    case $yn in
+      [Yy]* ) 
+        log "info" "You can download the CSV file from: $output_file"
+        break
+        ;;
+      [Nn]* ) 
+        log "info" "Okay, the CSV file won't be downloaded."
+        break
+        ;;
+      * ) log "error" "Please answer yes (y) or no (n).";;
+    esac
+  done
+  log "info" "END: the function manul_user_search()."
 }
 
-user_search_inputfile() {
-  # This function reads search patterns from an input file and performs user searches
-  # Load the configuration file
+file_user_search() {
+  # This function searches for users based on an input file and saves the results in a CSV file
+  
   source "$CONF_FILE"
 
-  log "info" "BEGIN: the function user_search_inputfile()..."
-
   local input_file="$1"
-  local output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
+  local output_file="${3:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
 
-  log "info" "Reading search patterns from input file: $input_file"
+  local response
+  local lastname
+  local firstname
+  local cached_user
 
-  if [[ ! -f "$input_file" ]]; then
-    log "error" "Input file not found: $input_file"
-    return 1
-  fi
+  log "info" "BEGIN: the function file_user_search()..."
 
   # Define a function to pad a number with leading zeros
   pad_number() {
     local number=$1
     local total_digits=$2
-
     printf "%0${total_digits}d" "$number" 2>/dev/null || printf "%s" "$number"
   }
-
+  
   # Get the total number of lines in the input file
   local total_lines
   total_lines=$(wc -l < "$input_file")
@@ -614,24 +649,82 @@ user_search_inputfile() {
   local current_line=1
   # Calculate the number of digits in total_lines
   local num_digits=${#total_lines}
+  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
+  local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
+  local user_in_cache="false"
 
-  while read -r search_pattern; do
-    # Skip if line is empty or contains only spaces
-    [[ -z "${search_pattern// }" ]] && continue
-    # Skip if line starts with a hash
-    [[ "$search_pattern" =~ ^#.*$ ]] && continue
-
-    # Pad the search_pattern to a width of 30 with trailing spaces
-    printf -v search_pattern_padded "%-30s" "$search_pattern"
-
+  # Parse the response and create the CSV file
+  log "info" "Parsing API response and generating CSV file..."
+  echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+  # Process each search pattern
+  while read -r line; do
+    # Skip if line starts with a hash (#) character of if it is empty
+    [[ -z "${line// }" || "$line" =~ ^\#.*$ ]] && continue
+    # Pad the search_pattern to a width of 20 with trailing spaces
+    printf -v line_padded "%-30s" "$line"
     # Then, use the pad_number function when padding current_line and total_lines
     current_line_padded=$(pad_number "$current_line" "$num_digits")
     total_lines_padded=$(pad_number "$total_lines" "$num_digits")
+    # Display the current line number and the total number of lines
+    log "info" "Processing line $current_line_padded of $total_lines_padded: $line_padded"  
+    # Check if the cache file exists
+    log "debug" "Checking if the cache file exists..."
+    if [[ -f "$cache_file" ]]; then
+      log "debug" "Cache file exists." 
+      # If yes, check if the user is in the cache
+      log "debug" "Checking if the user is in the cache..."
+      cached_user=$(grep -i "$line" "$cache_file")
 
-    log "info" "Processing search pattern: $search_pattern_padded ($current_line_padded/$total_lines_padded)"
+      if [[ -n "$cached_user" ]]; then
+        # If the user is in the cache, use the cached data
+        log "debug" "User found in the cache."
+        user_in_cache="true"
+        response="$cached_user"
+      fi
+    fi
+    # If the user is not in the cache (or the cache file does not exist), perform the API request
+    if [[ -z "$response" ]]; then
+      log "debug" "User not found in the cache."
+      # Check the exit status of the curl command
+      # Check if the search pattern contains a comma
+      log "debug" "Checking if the search pattern contains a comma..."
+      if [[ $line == *,* ]]; then
+        log "debug" "Search pattern contains a comma."
+        # If yes, split the search pattern into first name and last name
+        log "debug" "Splitting the search pattern into first name and last name..."
+        lastname=$(echo "$line" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
+        firstname=$(echo "$line" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
+        # Update the search pattern to "Firstname Lastname" format
+        search_pattern="${firstname} ${lastname}" 
+        log "debug" "Search pattern updated to: $line"
+      fi
+      # Perform the API request to search for user(s)
+      log "debug" "Sending API request to search for user..."
+      if ! response=$(curl -sS -X GET "$api_endpoint" \
+        -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+        -G --data-urlencode "search_term=$line" \
+        --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
+        log "error" "Failed to fetch data from the Canvas API."
+        return 1
+      fi
+      # Add the user to the cache
+      log "debug" "Adding the user to the cache..."
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "$cache_file"
+    fi
+    # Check if the response is empty
+    if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
+      log "warn" "No users found matching the pattern: $line"
+      return
+    fi
 
-    user_search "$search_pattern" "$output_file"
-
+    # Check if the user is in the cache
+    if [[ "$user_in_cache" == "true" ]]; then
+      log "debug" "User found in cache. Using cached data."
+      echo "$response" >> "$output_file"
+    else
+      log "debug" "User not found in cache. Using API data."
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .integration_id, "", .login_id, (.sortable_name | split(", ")[1]), (.sortable_name | split(", ")[0]), .name, .sortable_name, .short_name, .email, (if .enrollments != null then .enrollments[0].workflow_state else "" end), (if .sis_user_id != null then "TRUE" else "FALSE" end)] | @csv' >> "$output_file"
+    fi
     # Increment the current line number
     ((current_line++))
   done < "$input_file"
@@ -640,85 +733,18 @@ user_search_inputfile() {
   while true; do
     read -rp "Would you like to download the CSV file? (y/n) " yn
     case $yn in
-      [Yy]* )
+      [Yy]* ) 
         log "info" "You can download the CSV file from: $output_file"
         break
         ;;
-      [Nn]* )
+      [Nn]* ) 
         log "info" "Okay, the CSV file won't be downloaded."
         break
         ;;
       * ) log "error" "Please answer yes (y) or no (n).";;
     esac
   done
-
-  log "info" "END: the function user_search_inputfile()."
-}
-
-user_search_singleuser() {
-  # This function prompts the user to enter a search pattern and performs a user search
-  # Load the configuration file
-  source "$CONF_FILE"
-
-  log "info" "BEGIN: the function user_search_singleuser()..."
-
-  local output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
-  local search_pattern
-
-  # Check if the search pattern is missing or not provided
-  if [[ -z "$1" ]]; then
-    log "info" "Please enter the search pattern:"
-    read -r search_pattern
-  else
-    search_pattern="$1"
-  fi
-
-  # Check if the search pattern is missing double quotes, and add them if needed
-  if [[ $search_pattern != \"*\"*\" ]]; then
-    search_pattern="\"$search_pattern\""
-  fi
-
-  # Define a function to pad a number with leading zeros
-  pad_number() {
-    local number=$1
-    local total_digits=$2
-
-    printf "%0${total_digits}d" "$number" 2>/dev/null || printf "%s" "$number"
-  }
-
-  # Initialize the current line number and total lines as 1 for single user search
-  local current_line=1
-  local total_lines=1
-  local num_digits=1
-
-  # Pad the search_pattern to a width of 30 with trailing spaces
-  printf -v search_pattern_padded "%-30s" "$search_pattern"
-
-  # Then, use the pad_number function when padding current_line and total_lines
-  current_line_padded=$(pad_number "$current_line" "$num_digits")
-  total_lines_padded=$(pad_number "$total_lines" "$num_digits")
-
-  log "info" "Processing search pattern: $search_pattern_padded ($current_line_padded/$total_lines_padded)"
-
-  user_search "$search_pattern" "$output_file"
-
-  # Prompt for download
-  while true; do
-    read -rp "Would you like to download the CSV file? (y/n) " yn
-    case $yn in
-      [Yy]* )
-        log "info" "You can download the CSV file from: $output_file"
-        break
-        ;;
-      [Nn]* )
-        log "info" "Okay, the CSV file won't be downloaded."
-        break
-        ;;
-      * ) log "error" "Please answer yes (y) or no (n).";;
-    esac
-  done
-
-  log "info" "END: the function user_search_singleuser()."
+  log "info" "END: the function file_user_search()."
 }
 
 get_user_id() {
@@ -1091,21 +1117,23 @@ while [[ "$#" -gt 0 ]]; do
       if [[ "$1" == "-download" ]]; then
         validate_setup > /dev/null
         download_all_teachers
-      elif [[ -f "$1" ]]; then
+      elif [[ "$1" == "-file" ]]; then
         validate_setup > /dev/null
-        user_search_inputfile "$1"
+        file_user_search "$1" # search for users using an input file
       else
         validate_setup > /dev/null
-        user_search_singleuser "$1"
+        input_user_search "$1" # search for users using a single input
       fi
       shift
       ;;
     createcourse) # create a new course
       shift
       if [[ -n "$1" ]] && [[ -f "$1" ]]; then
+        validate_setup > /dev/null
         create_course "$1"
         shift
       else
+        validate_setup > /dev/null
         create_course
       fi
       ;;
