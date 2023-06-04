@@ -583,7 +583,7 @@ input_user_search() {
   fi
 
   # Parse the response and create the CSV file
-  log "info" "Parsing API response and generating CSV file..."
+  log "info" "Parsing response and generating CSV file..."
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"email\"" > "$output_file"
   if [[ "$user_in_cache" == "true" ]]; then
     log "debug" "User found in cache."
@@ -634,16 +634,32 @@ file_user_search() {
   # This function searches for users based on an input file and saves the results in a CSV file
   
   source "$CONF_FILE"
-
+  log "info" "BEGIN: the function file_user_search()..."
   local input_file="$1"
+  log "debug" "Input file: $input_file"
   local output_file="${3:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
-
+  log "debug" "Output file: $output_file"
   local response
   local lastname
   local firstname
   local cached_user
-
-  log "info" "BEGIN: the function file_user_search()..."
+  local user_in_cache
+  # Get the total number of lines in the input file
+  local total_lines
+  log "debug" "Getting the total number of lines in the input file..."
+  total_lines=$(wc -l < "$input_file")
+  log "debug" "Total number of lines in the input file: $total_lines"
+  # Initialize the current line number
+  log "debug" "Initializing the current line number..."
+  local current_line=1
+  # Calculate the number of digits in total_lines
+  local num_digits=${#total_lines}
+  log "debug" "Number of digits in total_lines: $num_digits"
+  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
+  log "debug" "API endpoint: $api_endpoint"
+  local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
+  log "debug" "Cache file: $cache_file"
+  local user_in_cache="false"
 
   # Define a function to pad a number with leading zeros
   pad_number() {
@@ -652,22 +668,13 @@ file_user_search() {
     printf "%0${total_digits}d" "$number" 2>/dev/null || printf "%s" "$number"
   }
   
-  # Get the total number of lines in the input file
-  local total_lines
-  total_lines=$(wc -l < "$input_file")
-  # Initialize the current line number
-  local current_line=1
-  # Calculate the number of digits in total_lines
-  local num_digits=${#total_lines}
-  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
-  local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
-  local user_in_cache="false"
-
   # Parse the response and create the CSV file
-  log "info" "Parsing API response and generating CSV file..."
+  log "info" "Parsing response and generating CSV file..."
   echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
   # Process each search pattern
+  log "info" "Processing each search pattern..."
   while read -r line; do
+    log "debug" "Processing search pattern: $line"
     # Skip if line starts with a hash (#) character of if it is empty
     [[ -z "${line// }" || "$line" =~ ^\#.*$ ]] && continue
     # Pad the search_pattern to a width of 20 with trailing spaces
@@ -705,7 +712,7 @@ file_user_search() {
         lastname=$(echo "$line" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
         firstname=$(echo "$line" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
         # Update the search pattern to "Firstname Lastname" format
-        search_pattern="${firstname} ${lastname}" 
+        line="${firstname} ${lastname}" 
         log "debug" "Search pattern updated to: $line"
       fi
       # Perform the API request to search for user(s)
@@ -1126,7 +1133,7 @@ while [[ "$#" -gt 0 ]]; do
       shift
       if [[ "$1" == "-download" ]]; then
         validate_setup > /dev/null
-        download_all_teachers
+        download_all_teachers # download all teachers in the account 
       elif [[ "$1" == "-file" ]]; then
         validate_setup > /dev/null
         file_user_search "$1" # search for users using an input file
