@@ -635,7 +635,7 @@ file_user_search() {
   
   source "$CONF_FILE"
   log "info" "BEGIN: the function file_user_search()..."
-  local input_file="$2"
+  local input_file="$1"
   log "debug" "Input file: $input_file"
   local output_file="${3:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
   log "debug" "Output file: $output_file"
@@ -1136,7 +1136,7 @@ while [[ "$#" -gt 0 ]]; do
         download_all_teachers # download all teachers in the account 
       elif [[ "$1" == "-file" ]]; then
         validate_setup > /dev/null
-        file_user_search "$1" # search for users using an input file
+        file_user_search "$2" # search for users using an input file
       else
         validate_setup > /dev/null
         input_user_search "$1" # search for users using a single input
