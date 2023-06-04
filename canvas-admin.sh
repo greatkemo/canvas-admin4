@@ -443,16 +443,18 @@ check_for_updates() {
 }
 
 download_all_teachers() {
+  # This function downloads all teachers from Canvas and outputs them to a CSV file
   # Load the configuration file
   source "$CONF_FILE"
 
   log "info" "BEGIN: the function download_all_teachers()..."
-
+  
   local page=1
   local per_page=100
   local total_teachers=0
   local teacher_role_id
 
+  # Fetch the teacher role ID from the API
   log "info" "Fetching teacher role ID from API. ${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles"
   response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/roles" \
     -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json")
@@ -460,6 +462,7 @@ download_all_teachers() {
   teacher_role_id=$(echo "$response" | jq -r '.[] | select(.label == "Teacher") | .id')
   log "debug" "Teacher role ID: $teacher_role_id"
 
+  # Create the CSV file
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"sortable_name\",\"short_name\",\"email\"" > "${CANVAS_ADMIN_CACHE}user_directory.csv"
 
   # User prompt
@@ -473,6 +476,8 @@ download_all_teachers() {
   done
   while true; do
     log "info" "Fetching page $page from API..."
+
+    # Fetch the users from the API
     response=$(curl -sS -X GET "${CANVAS_INSTITUTE_URL}/accounts/${CANVAS_ACCOUNT_ID}/users" \
       -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
       -G --data-urlencode "per_page=$per_page" --data-urlencode "page=$page" \
@@ -482,6 +487,7 @@ download_all_teachers() {
       --data-urlencode "include[]=short_name" --data-urlencode "include[]=email" --fail)
     log "debug" "Page $page response: $response"
 
+    # Check if the response is empty
     if [[ -z "$response" ]]; then
       log "warn" "No response received for page $page. Skipping..."
       break
@@ -510,7 +516,7 @@ download_all_teachers() {
 
 user_search() {
   # This function searches for users based on the search pattern and saves the results in a CSV file
-
+  # Load the configuration file
   source "$CONF_FILE"
   
   log "info" "BEGIN: the function user_search()..."
@@ -551,7 +557,7 @@ user_search() {
 
   # Perform the API request to search for users
   log "info" "Sending API request to search for users..."
-   # If the user is not in the cache (or the cache file does not exist), perform the API request
+  # If the user is not in the cache (or the cache file does not exist), perform the API request
   if [[ -z "$response" ]]; then
     # Check the exit status of the curl command
     if ! response=$(curl -sS -X GET "$api_endpoint" \
@@ -611,7 +617,6 @@ process_input_file() {
 
   local input_file="$1"
   # Define a single output file for all searches
-  
   local output_file="${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv"
 
   # Define a function to pad a number with leading zeros
@@ -621,6 +626,7 @@ process_input_file() {
 
     printf "%0${total_digits}d" "$number" 2>/dev/null || printf "%s" "$number"
   }
+
   # Get the total number of lines in the input file
   local total_lines
   total_lines=$(wc -l < "$input_file")
@@ -631,9 +637,9 @@ process_input_file() {
 
   # Write header to the output file
   echo "\"canvas_user_id\",\"user_id\",\"integration_id\",\"authentication_provider_id\",\"login_id\",\"first_name\",\"last_name\",\"full_name\",\"sortable_name\",\"short_name\",\"email\",\"status\",\"created_by_sis\"" > "$output_file"
+
   # Process each search pattern
   while read -r line; do
-    
     # Skip if line is empty or contains only spaces
     [[ -z "${line// }" ]] && continue
     # Skip if line starts with a hash
@@ -648,9 +654,34 @@ process_input_file() {
 
     log "info" "Processing search pattern: $line_padded ($current_line_padded/$total_lines_padded)"
 
-    # Suppress logs and download prompt from the user_search() function    
+    # Search for users
     if ! user_search "$line" "suppress" "$output_file" >/dev/null; then
       log "error" "Failed to process search pattern: $line."
+      continue
+    fi
+
+    # Check if multiple users were found
+    if [[ $(grep -c "CANVAS_USER_ID:" <<< "$(tail -n +2 "$output_file")") -gt 1 ]]; then
+      log "info" "Multiple users found for the search pattern: $line_padded"
+      log "info" "Please select the correct user by entering the item number in the first field."
+
+      # Display the search results with item numbers
+      awk '{print NR-1,$0}' FS=':' OFS=':' "$output_file" | column -t -s ':' | sed '1 s/ 0/CANVAS_USER_ID/'
+
+      # Prompt for user selection
+      local selected_user_number
+      while true; do
+        read -rp "Enter the item number of the correct user: " selected_user_number
+        if [[ "$selected_user_number" =~ ^[0-9]+$ ]]; then
+          break
+        else
+          log "error" "Invalid input. Please enter a valid item number."
+        fi
+      done
+
+      # Extract the selected user and overwrite the output file
+      sed -n "$selected_user_number p" "$output_file" > "$output_file.temp"
+      mv "$output_file.temp" "$output_file"
     fi
 
     # Increment the current line number
@@ -661,11 +692,11 @@ process_input_file() {
   while true; do
     read -rp "Would you like to download the CSV files? (y/n) " yn
     case $yn in
-      [Yy]* ) 
+      [Yy]* )
         log "info" "You can download the CSV files from: $CANVAS_ADMIN_DL"
         break
         ;;
-      [Nn]* ) 
+      [Nn]* )
         log "info" "Okay, the CSV files won't be downloaded."
         break
         ;;
