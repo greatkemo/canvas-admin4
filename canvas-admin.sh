@@ -596,7 +596,7 @@ input_user_search() {
   # Display the search results
   if [[ "$user_in_cache" == "true" ]]; then
     log "info" "User search results (from cache):"
-    awk 'BEGIN { FS=","; OFS=": " } { if (NF) { print "CANVAS_USER_ID", $1; print "USER_ID", $2; print "LOGIN_ID", $3; print "FULL_NAME", $4; print "EMAIL", $5; print "" } }' <<< "$cached_user"
+    awk 'BEGIN { FS=","; OFS=": " } { gsub(/"/, "", $1); gsub(/"/, "", $2); gsub(/"/, "", $3); gsub(/"/, "", $4); gsub(/"/, "", $5); print "CANVAS_USER_ID", $1; print "USER_ID", $2; print "LOGIN_ID", $3; print "FULL_NAME", $4; print "EMAIL", $5; print "" }'
   else
     log "info" "User search results (from API):"
     echo "$response" | jq -r '. | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nEMAIL: \(.email)\n"'
