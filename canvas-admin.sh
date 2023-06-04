@@ -532,6 +532,18 @@ input_user_search() {
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
 
   log "info" "Initiating user search with pattern: $search_pattern"
+  # Check if the search pattern contains a comma
+  log "debug" "Checking if the search pattern contains a comma..."
+  if [[ $search_pattern == *,* ]]; then
+    log "debug" "Search pattern contains a comma."
+    # If yes, split the search pattern into first name and last name
+    log "debug" "Splitting the search pattern into first name and last name..."
+    lastname=$(echo "$search_pattern" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
+    firstname=$(echo "$search_pattern" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
+    # Update the search pattern to "Firstname Lastname" format
+    search_pattern="${firstname} ${lastname}" 
+    log "debug" "Search pattern updated to: $search_pattern"
+  fi
   # Check if the cache file exists
   log "debug" "Checking if the cache file exists..."
   if [[ -f "$cache_file" ]]; then
@@ -550,19 +562,6 @@ input_user_search() {
   # If the user is not in the cache (or the cache file does not exist), perform the API request
   if [[ -z "$response" ]]; then
     log "debug" "User not found in the cache."
-    # Check the exit status of the curl command
-    # Check if the search pattern contains a comma
-    log "debug" "Checking if the search pattern contains a comma..."
-    if [[ $search_pattern == *,* ]]; then
-      log "debug" "Search pattern contains a comma."
-      # If yes, split the search pattern into first name and last name
-      log "debug" "Splitting the search pattern into first name and last name..."
-      lastname=$(echo "$search_pattern" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
-      firstname=$(echo "$search_pattern" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
-      # Update the search pattern to "Firstname Lastname" format
-      search_pattern="${firstname} ${lastname}" 
-      log "debug" "Search pattern updated to: $search_pattern"
-    fi
     # Perform the API request to search for user(s)
     log "info" "Sending API request to search for user..."
     if ! response=$(curl -sS -X GET "$api_endpoint" \
@@ -611,6 +610,7 @@ input_user_search() {
     log "info" "User search results (from API):"
     echo "$response" | jq -r '. | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nEMAIL: \(.email)\n"'
   fi
+
 
   # Prompt for download
   while true; do
@@ -683,7 +683,19 @@ file_user_search() {
     current_line_padded=$(pad_number "$current_line" "$num_digits")
     total_lines_padded=$(pad_number "$total_lines" "$num_digits")
     # Display the current line number and the total number of lines
-    log "info" "Processing line $current_line_padded of $total_lines_padded: $line_padded"  
+    log "info" "Processing $line: $line_padded ($current_line_padded of $total_lines_padded)"
+        # Check if the search pattern contains a comma
+    log "debug" "Checking if the search pattern contains a comma..."
+    if [[ $line == *,* ]]; then
+      log "debug" "Search pattern contains a comma."
+      # If yes, split the search pattern into first name and last name
+      log "debug" "Splitting the search pattern into first name and last name..."
+      lastname=$(echo "$line" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
+      firstname=$(echo "$line" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
+      # Update the search pattern to "Firstname Lastname" format
+      line="${firstname} ${lastname}" 
+      log "debug" "Search pattern updated to: $line"
+    fi
     # Check if the cache file exists
     log "debug" "Checking if the cache file exists..."
     if [[ -f "$cache_file" ]]; then
