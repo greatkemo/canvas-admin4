@@ -635,7 +635,7 @@ file_user_search() {
   
   source "$CONF_FILE"
   log "info" "BEGIN: the function file_user_search()..."
-  local input_file="$1"
+  local input_file="$2"
   log "debug" "Input file: $input_file"
   local output_file="${3:-${CANVAS_ADMIN_DL}user_search-$(date '+%d-%m-%Y_%H-%M-%S').csv}"
   log "debug" "Output file: $output_file"
