@@ -751,8 +751,8 @@ file_user_search() {
     # Loop until a valid search pattern is provided
     while [[ -z "$response" || "$response" == "[]" ]]; do
       log "warn" "No users found matching the search pattern: $search_pattern"
-
-      read -rp "Please provide a valid search pattern: " valid_search_pattern
+      exec 3<>/dev/tty
+      read -rp "Please provide a valid search pattern: "  -u 3 valid_search_pattern
       log "debug" "User entered: $valid_search_pattern"
 
       # Check if the search pattern is in the cache
