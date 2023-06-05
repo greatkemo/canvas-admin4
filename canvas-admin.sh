@@ -703,11 +703,16 @@ file_user_search() {
     # Get the terminal width
     terminal_width=$(tput cols)
 
-    # Pad the search_pattern with dots to match the terminal width
+    # Calculate the length of the search pattern
     search_pattern_length=${#search_pattern}
-    dots=$(printf "%*s" $((terminal_width - search_pattern_length)) "")
-    dots=${dots// /.}
-    line_padded="$search_pattern$dots"
+
+    # Calculate the available width for padding
+    padding_width=$((terminal_width - search_pattern_length - 7))  # Adjust the value '7' as per your requirement
+
+    # Generate the padding string with dots and a space
+    padding_dots=$(printf "%*s" "$((padding_width - 1))" "")
+    padding_dots=${padding_dots// /.}
+    line_padded="$search_pattern :($current_line_padded/$total_lines_padded)$padding_dots"
     
     # Then, use the pad_number function when padding current_line and total_lines
     current_line_padded=$(pad_number "$current_line" "$num_digits")
