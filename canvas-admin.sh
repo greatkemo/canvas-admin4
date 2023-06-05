@@ -638,7 +638,6 @@ file_user_search() {
   # This function searches for users based on an input file and saves the results in a CSV file
   
   source "$CONF_FILE"
-
   log "info" "BEGIN: the function file_user_search()..."
   local input_file="$1"
   log "debug" "Input file: $input_file"
@@ -648,9 +647,10 @@ file_user_search() {
   local lastname
   local firstname
   local cached_user
-  local user_in_cache
+  local user_in_cache=""
   # Get the total number of lines in the input file
   local total_lines
+
   log "debug" "Getting the total number of lines in the input file..."
   total_lines=$(wc -l < "$input_file")
   log "debug" "Total number of lines in the input file: $total_lines"
@@ -678,79 +678,79 @@ file_user_search() {
   echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"email\"" > "$output_file"
   # Process each search pattern
   log "info" "Processing each search pattern..."
-  while read -r line; do
-    log "debug" "Processing search pattern: $line"
+  while read -r search_pattern; do
+    # Clear the response variable
+    log "debug" "Clearing the response variable..."
+    response=""
+    log "debug" "Processing search pattern: $search_pattern"
+    log "info" "Initiating user search with pattern: $search_pattern"
+    # Check if the search pattern contains a comma
+    log "debug" "Checking if the search pattern contains a comma..."
     # Skip if line starts with a hash (#) character of if it is empty
-    [[ -z "${line// }" || "$line" =~ ^\#.*$ ]] && continue
-    if [[ $line == *,* ]]; then
+    [[ -z "${search_pattern// }" || "$search_pattern" =~ ^\#.*$ ]] && continue
+    if [[ $search_pattern == *,* ]]; then
       log "debug" "Search pattern contains a comma."
       # If yes, split the search pattern into first name and last name
       log "debug" "Splitting the search pattern into first name and last name..."
-      lastname=$(echo "$line" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
-      firstname=$(echo "$line" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
+      lastname=$(echo "$search_pattern" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
+      firstname=$(echo "$search_pattern" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
       # Update the search pattern to "Firstname Lastname" format
-      line="${firstname} ${lastname}" 
-      log "debug" "Search pattern updated to: $line"
+      search_pattern="${firstname} ${lastname}" 
+      log "debug" "Search pattern updated to: $search_pattern"
     fi
-    # Pad the search_pattern to a width of 20 with trailing spaces
-    printf -v line_padded "%-30s" "$line"
+    # Pad the search_pattern to a width of 30 with trailing spaces
+    printf -v line_padded "%-30s" "$search_pattern"
     # Then, use the pad_number function when padding current_line and total_lines
     current_line_padded=$(pad_number "$current_line" "$num_digits")
     total_lines_padded=$(pad_number "$total_lines" "$num_digits")
-    # Display the current line number and the total number of lines
-    log "info" "Processing $line_padded :($current_line_padded/$total_lines_padded)"
-    # Check if the search pattern contains a comma
-    log "debug" "Checking if the search pattern contains a comma..."
-    # Check if the cache file exists
+
+ # Check if the cache file exists
     log "debug" "Checking if the cache file exists..."
     if [[ -f "$cache_file" ]]; then
       log "debug" "Cache file exists." 
       # If yes, check if the user is in the cache
       log "debug" "Checking if the user is in the cache..."
-      cached_user=$(grep -i "$line" "$cache_file")
+      cached_user=$(grep -i "$search_pattern" "$cache_file")
 
       if [[ -n "$cached_user" ]]; then
         # If the user is in the cache, use the cached data
         log "debug" "User found in the cache."
         user_in_cache="true"
         response="$cached_user"
+      else
+        user_in_cache="false"
+        # If the user is not in the cache, perform the API request
+        log "debug" "User not found in the cache."
+        # Perform the API request to search for user(s)
+        log "debug" "Sending API request to search for user..."
+        response=$(curl -sS -X GET "$api_endpoint" \
+          -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -G --data-urlencode "search_term=$search_pattern" \
+          --data-urlencode "include[]=email")
       fi
     fi
     # If the user is not in the cache (or the cache file does not exist), perform the API request
-    if [[ -z "$response" ]]; then
-      log "debug" "User not found in the cache."
-      # Check the exit status of the curl command
-      # Check if the search pattern contains a comma
-      log "debug" "Checking if the search pattern contains a comma..."
-      if [[ $line == *,* ]]; then
-        log "debug" "Search pattern contains a comma."
-        # If yes, split the search pattern into first name and last name
-        log "debug" "Splitting the search pattern into first name and last name..."
-        lastname=$(echo "$line" | cut -d ',' -f 1 | xargs) # xargs is used to trim leading/trailing spaces
-        firstname=$(echo "$line" | cut -d ',' -f 2 | xargs) # xargs is used to trim leading/trailing spaces
-        # Update the search pattern to "Firstname Lastname" format
-        line="${firstname} ${lastname}" 
-        log "debug" "Search pattern updated to: $line"
-      fi
-      # Perform the API request to search for user(s)
-      log "debug" "Sending API request to search for user..."
-      if ! response=$(curl -sS -X GET "$api_endpoint" \
-        -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-        -G --data-urlencode "search_term=$line" \
-        --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
-        log "error" "Failed to fetch data from the Canvas API."
-        return 1
-      fi
-      # Add the user to the cache
-      log "debug" "Adding the user to the cache..."
-      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .email] | @csv' >> "$cache_file"
-    fi
     # Check if the response is empty
+    log "debug" "Checking if the response is empty..."
+    log "debug" "Response: $response"
+
     if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
-      log "warn" "No users found matching the pattern: $line"
+      log "warn" "No users found matching the pattern: $search_pattern"
       return
     fi
+    if [[ "$user_in_cache" == "false" ]]; then
+      # If the user is not in the cache, update the cache file
+      log "debug" "Updating the cache file..."
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .email] | @csv' >> "$cache_file"
+    fi
 
+    # Check if the response contains multiple results
+    # Placeholder for statement to check for multiple results and prompt user to select one
+    # enter the user's choice in the variable below
+
+    # Display the current line number and the total number of lines
+    log "info" "Finished processing $line_padded :($current_line_padded/$total_lines_padded)"
     # Check if the user is in the cache
     if [[ "$user_in_cache" == "true" ]]; then
       log "debug" "User found in cache. Using cached data."
