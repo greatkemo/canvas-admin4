@@ -683,7 +683,6 @@ file_user_search() {
     log "debug" "Clearing the response variable..."
     response=""
     log "debug" "Processing search pattern: $search_pattern"
-    log "info" "Initiating user search with pattern: $search_pattern"
     # Check if the search pattern contains a comma
     log "debug" "Checking if the search pattern contains a comma..."
     # Skip if line starts with a hash (#) character of if it is empty
@@ -699,7 +698,7 @@ file_user_search() {
       log "debug" "Search pattern updated to: $search_pattern"
     fi
     # Pad the search_pattern to a width of 30 with trailing spaces
-    printf -v line_padded "%-30s" "$search_pattern"
+    printf -v line_padded "%-40s" "${search_pattern//./. }"
     # Then, use the pad_number function when padding current_line and total_lines
     current_line_padded=$(pad_number "$current_line" "$num_digits")
     total_lines_padded=$(pad_number "$total_lines" "$num_digits")
