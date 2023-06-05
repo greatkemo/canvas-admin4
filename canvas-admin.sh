@@ -698,7 +698,17 @@ file_user_search() {
       log "debug" "Search pattern updated to: $search_pattern"
     fi
     # Pad the search_pattern to a width of 30 with trailing spaces
-    printf -v line_padded "%-40s" "${search_pattern//./. }"
+    #printf -v line_padded "%-40s" "$search_pattern"
+    
+    # Get the terminal width
+    terminal_width=$(tput cols)
+
+    # Pad the search_pattern with dots to match the terminal width
+    search_pattern_length=${#search_pattern}
+    dots=$(printf "%*s" $((terminal_width - search_pattern_length)) "")
+    dots=${dots// /.}
+    line_padded="$search_pattern$dots"
+    
     # Then, use the pad_number function when padding current_line and total_lines
     current_line_padded=$(pad_number "$current_line" "$num_digits")
     total_lines_padded=$(pad_number "$total_lines" "$num_digits")
