@@ -716,7 +716,7 @@ file_user_search() {
     # Generate the padding string with dots and a space
     padding_dots=$(printf "%*s" "$((padding_width - 1))" "")
     padding_dots=${padding_dots// /.}
-    line_padded="$search_pattern $padding_dots :($current_line_padded/$total_lines_padded)"
+    line_padded="$search_pattern $padding_dots :[ \033[32mCOMPLETE\033[0m ]"
 
  # Check if the cache file exists
     log "debug" "Checking if the cache file exists..."
@@ -744,16 +744,21 @@ file_user_search() {
           --data-urlencode "include[]=email")
       fi
     fi
-    # If the user is not in the cache (or the cache file does not exist), perform the API request
     # Check if the response is empty
     log "debug" "Checking if the response is empty..."
     log "debug" "Response: $response"
 
+    # Loop until a valid search pattern is provided
     while [[ -z "$response" ]] || [[ "$response" == "[]" ]]; do
-      log "warn" "No users found matching the search pattern: $search_pattern"
+      if [[ -z "$response" ]]; then
+        log "warn" "No users found matching the search pattern: $search_pattern"
+      else
+        log "warn" "Invalid search pattern provided: $search_pattern"
+      fi
+      
       read -rp "Please provide a valid search pattern: " search_pattern
-      # Ask the user to a valid search pattern and update the search_pattern variable
       log "debug" "User entered: $search_pattern"
+
       # Check if the search pattern is in the cache
       log "debug" "Checking if the search pattern is in the cache..."
       cached_user=$(grep -i "$search_pattern" "$cache_file")
@@ -776,7 +781,7 @@ file_user_search() {
 
     # Display the current line number and the total number of lines
     log "debug" "Finished processing: $search_pattern"
-    echo "[Finished processing]: $line_padded"
+    echo -e "\033[36m[Processing ($current_line_padded/$total_lines_padded)]: $line_padded\033[0m"
     # Check if the user is in the cache
     if [[ "$user_in_cache" == "true" ]]; then
       log "debug" "User found in cache. Using cached data."
