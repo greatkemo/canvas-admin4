@@ -1153,7 +1153,7 @@ while [[ "$#" -gt 0 ]]; do
         download_all_teachers # download all teachers in the account 
       elif [[ "$1" == "-file" ]]; then
         validate_setup > /dev/null
-        file_user_search "$2" # search for users using an input file
+        file_user_search "$1" "$2" # search for users using an input file
       else
         validate_setup > /dev/null
         input_user_search "$1" # search for users using a single input
