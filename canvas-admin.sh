@@ -1078,10 +1078,12 @@ usage() {
   echo "update"
   echo "  Checks GitHub for updates to the canvas-admin.sh script and prompts the user to update."
   echo ""
-  echo "user"
+  echo "usersearch"
   echo "  Search for users based on a search pattern and output their records to a CSV file."
-  echo "  Format: ./canvas-admin.sh user \"user search pattern\""
-  echo "  Example: ./canvas-admin.sh user \"john.doe\""
+  echo "  Format: ./canvas-admin.sh usersearch \"user search pattern\""
+  echo "  Example: ./canvas-admin.sh usersearch \"john doe\""
+  echo "  Example: ./canvas-admin.sh usersearch -file \"/path/to/file.txt\""
+  echo "  Example: ./canvas-admin.sh usersearch -download # Downloads all users in the account to a CSV cache."
   echo ""
   echo "courseconfig"
   echo "  Apply settings to a course using the specified arguments."
@@ -1146,20 +1148,26 @@ while [[ "$#" -gt 0 ]]; do
       fi
       exit 0
       ;;
-    user) # search for users
+    usersearch) # search for users
       shift
       if [[ "$1" == "-download" ]]; then
         validate_setup > /dev/null
         download_all_teachers # download all teachers in the account 
       elif [[ "$1" == "-file" ]]; then
+        if [[ -z "$2" ]]; then
+          log "error" "Missing input file. Please provide an input file path."
+          exit 1
+        fi
         validate_setup > /dev/null
         file_user_search "$2" # search for users using an input file
+        shift
       else
         validate_setup > /dev/null
         input_user_search "$1" # search for users using a single input
       fi
       shift
       ;;
+
     createcourse) # create a new course
       shift
       if [[ -n "$1" ]] && [[ -f "$1" ]]; then
