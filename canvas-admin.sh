@@ -707,6 +707,7 @@ perform_grep_search() {
 
 
 
+
   # Define a function to pad a number with leading zeros
   pad_number() {
     local number=$1
