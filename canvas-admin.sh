@@ -764,8 +764,20 @@ file_user_search() {
         log "debug" "User found in the cache."
         response="$cached_user"
         user_in_cache="true"
+      else
+        user_in_cache="false"
+        # If the user is not in the cache, perform the API request
+        log "debug" "User not found in the cache."
+        # Perform the API request to search for user(s)
+        log "debug" "Sending API request to search for user..."
+        response=$(curl -sS -X GET "$api_endpoint" \
+          -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -G --data-urlencode "search_term=$valid_search_pattern" \
+          --data-urlencode "include[]=email")
       fi
     done
+
     if [[ "$user_in_cache" == "false" ]]; then
       # If the user is not in the cache, update the cache file
       log "debug" "Updating the cache file..."
