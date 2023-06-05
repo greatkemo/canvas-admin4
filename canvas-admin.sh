@@ -559,6 +559,7 @@ input_user_search() {
         user_in_cache="true"
         response="$cached_user"
       else
+        user_in_cache="false"
         # If the user is not in the cache, perform the API request
         log "debug" "User not found in the cache."
         # Perform the API request to search for user(s)
@@ -584,11 +585,6 @@ input_user_search() {
       log "debug" "Updating the cache file..."
       echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .email] | @csv' >> "$cache_file"
     fi
-  # Check if the response is empty
-  if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
-    log "info" "No users found matching the pattern: $search_pattern"
-    return
-  fi
 
   # Display the search results
   if [[ "$user_in_cache" == "true" ]]; then
@@ -606,7 +602,7 @@ input_user_search() {
       print "EMAIL", $5; print "" }' <<< "$response"
   else
     log "info" "User search results (from API):"
-    echo "$response" | jq -r '. | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nEMAIL: \(.email)\n"'
+    echo "$response" | jq -r '.[] | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nEMAIL: \(.email)\n"'
   fi
 
   # Prompt for download
