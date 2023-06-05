@@ -527,6 +527,7 @@ input_user_search() {
   local lastname
   local firstname
   local cached_user
+  local user_in_cache=""
   
   local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
@@ -564,8 +565,7 @@ input_user_search() {
         log "debug" "Sending API request to search for user..."
         if ! response=$(curl -sS -X GET "$api_endpoint" \
           -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-          -G --data-urlencode "search_term=$search_pattern" \
-          --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
+          -G --data-urlencode "search_term=$search_pattern" --data-urlencode "include[]=email"); then
           log "error" "Failed to fetch data from the Canvas API."
           return 1
         fi
@@ -587,17 +587,6 @@ input_user_search() {
   if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
     log "info" "No users found matching the pattern: $search_pattern"
     return
-  fi
-
-  # Parse the response and create the CSV file
-  log "info" "Parsing response and generating CSV file..."
-  echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"email\"" > "$output_file"
-  if [[ "$user_in_cache" == "true" ]]; then
-    log "debug" "User found in cache."
-    echo "$response" >> "$output_file"
-  else
-    log "debug" "User not found in cache. Using API data."
-    echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .email] | @csv' >> "$output_file"
   fi
 
   # Display the search results
@@ -623,7 +612,18 @@ input_user_search() {
   while true; do
     read -rp "Would you like to download the CSV file? (y/n) " yn
     case $yn in
-      [Yy]* ) 
+      [Yy]* )
+        # Download the CSV file
+        # Parse the response and create the CSV file
+        log "info" "Parsing response and generating CSV file..."
+        echo "\"canvas_user_id\",\"user_id\",\"login_id\",\"full_name\",\"email\"" > "$output_file"
+        if [[ "$user_in_cache" == "true" ]]; then
+          log "debug" "User found in cache."
+          echo "$response" >> "$output_file"
+        else
+          log "debug" "User not found in cache. Using API data."
+          echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .email] | @csv' >> "$output_file"
+        fi 
         log "info" "You can download the CSV file from: $output_file"
         break
         ;;
@@ -637,12 +637,11 @@ input_user_search() {
   log "info" "END: the function input_user_search()."
 }
 
-
-
 file_user_search() {
   # This function searches for users based on an input file and saves the results in a CSV file
   
   source "$CONF_FILE"
+  
   log "info" "BEGIN: the function file_user_search()..."
   local input_file="$1"
   log "debug" "Input file: $input_file"
