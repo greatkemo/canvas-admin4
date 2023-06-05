@@ -51,7 +51,7 @@ log() {
   fi
   # Define the log output
   log_output="[$timestamp] [$log_label] $message"
-  sleep 0.5
+  #sleep 0.5
   if [ "$log_level" == "error" ]; then
     echo -e "${log_color}${log_output}\033[0m" | tee -a "${CANVAS_ADMIN_LOG}canvas-admin.log" >&2
   elif [ "$log_level" == "debug" ]; then
@@ -749,19 +749,16 @@ file_user_search() {
     log "debug" "Response: $response"
 
     # Loop until a valid search pattern is provided
-    while [[ -z "$response" ]] || [[ "$response" == "[]" ]]; do
-      if [[ -z "$response" ]]; then
-        log "warn" "No users found matching the search pattern: $search_pattern"
-      else
-        log "warn" "Invalid search pattern provided: $search_pattern"
-      fi
-      
-      read -rp "Please provide a valid search pattern: " search_pattern
-      log "debug" "User entered: $search_pattern"
+    while [[ -z "$response" || "$response" == "[]" ]]; do
+      log "warn" "No users found matching the search pattern: $search_pattern"
+
+      read -rp "Please provide a valid search pattern: " valid_search_pattern
+      log "debug" "User entered: $valid_search_pattern"
 
       # Check if the search pattern is in the cache
       log "debug" "Checking if the search pattern is in the cache..."
-      cached_user=$(grep -i "$search_pattern" "$cache_file")
+      cached_user=""
+      cached_user=$(grep -i "$valid_search_pattern" "$cache_file")
       if [[ -n "$cached_user" ]]; then
         # If the user is in the cache, use the cached data
         log "debug" "User found in the cache."
