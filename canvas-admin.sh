@@ -676,17 +676,36 @@ file_user_search() {
 
       # Create all combinations of the words
       local num_words=${#words[@]}
+      local best_match=""
+      local best_match_count=0
+
       for ((i=0; i<$num_words; i++)); do
           for ((j=i+1; j<=$num_words; j++)); do
               local name_part="${words[@]:i:j}"
-              grep -i "$name_part" "$file"
+              local result=$(grep -i "$name_part" "$file")
+              
               if [ $? -eq 0 ]; then
-                  return 0
+                  local count=0
+                  for word in $name_part; do
+                      if [[ "$result" == *"$word"* ]]; then
+                          ((count++))
+                      fi
+                  done
+                  
+                  if ((count > best_match_count)); then
+                      best_match="$result"
+                      best_match_count=$count
+                  fi
               fi
           done
       done
 
-      return 1
+      if [[ "$best_match" != "" ]]; then
+          echo "$best_match"
+          return 0
+      else
+          return 1
+      fi
   }
 
   # Define a function to pad a number with leading zeros
