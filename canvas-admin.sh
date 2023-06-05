@@ -563,17 +563,18 @@ input_user_search() {
         log "debug" "User not found in the cache."
         # Perform the API request to search for user(s)
         log "debug" "Sending API request to search for user..."
-        if ! response=$(curl -sS -X GET "$api_endpoint" \
-          -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-          -G --data-urlencode "search_term=$search_pattern" --data-urlencode "include[]=email"); then
-          log "error" "Failed to fetch data from the Canvas API."
-          return 1
-        fi
-
+        response=$(curl -sS -X GET "$api_endpoint" \
+          -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -G --data-urlencode "search_term=$search_pattern" \
+          --data-urlencode "include[]=email")
       fi
     fi
     # If the user is not in the cache (or the cache file does not exist), perform the API request
     # Check if the response is empty
+    log "debug" "Checking if the response is empty..."
+    log "debug" "Response: $response"
+
     if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
       log "warn" "No users found matching the pattern: $search_pattern"
       return
@@ -641,7 +642,7 @@ file_user_search() {
   # This function searches for users based on an input file and saves the results in a CSV file
   
   source "$CONF_FILE"
-  
+
   log "info" "BEGIN: the function file_user_search()..."
   local input_file="$1"
   log "debug" "Input file: $input_file"
