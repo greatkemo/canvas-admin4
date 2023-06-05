@@ -671,42 +671,38 @@ file_user_search() {
       local full_name="$1"
       local file="$2"
 
-      # Break the full name into an array of words
-      IFS=' ' read -r -a words <<< "$full_name"
+      # Check if search pattern is an email address
+      local is_email_pattern=0
+      if [[ "$full_name" == *"@"* ]]; then
+          is_email_pattern=1
+      fi
 
-      # Create all combinations of the words
-      local num_words=${#words[@]}
+      # Perform the search
       local best_match=""
       local best_match_count=0
-
-      for ((i=0; i<$num_words; i++)); do
-          for ((j=i+1; j<=$num_words; j++)); do
-              local name_part="${words[@]:i:j}"
-              local result=$(grep -i "$name_part" "$file")
-              
-              if [ $? -eq 0 ]; then
-                  local count=0
-                  for word in $name_part; do
-                      if [[ "$result" == *"$word"* ]]; then
-                          ((count++))
-                      fi
-                  done
-                  
-                  if ((count > best_match_count)); then
-                      best_match="$result"
-                      best_match_count=$count
-                  fi
-              fi
-          done
-      done
-
-      if [[ "$best_match" != "" ]]; then
-          echo "$best_match"
-          return 0
-      else
-          return 1
-      fi
+      awk -v name="$full_name" -v is_email="$is_email_pattern" -F',' '
+      {
+          local current_match_count=0
+          for (i = 1; i <= NF; i++) {
+              if (is_email == 1 && index($i, name) != 0) {
+                  current_match_count++
+              } else if (is_email == 0 && index($i, "@") == 0 && index(tolower($i), tolower(name)) != 0) {
+                  current_match_count++
+              }
+          }
+          if (current_match_count > best_match_count) {
+              best_match_count = current_match_count
+              best_match = $0
+          }
+      }
+      END {
+          if (best_match_count > 0) {
+              print best_match
+          }
+      }
+      ' "$file"
   }
+
 
   # Define a function to pad a number with leading zeros
   pad_number() {
