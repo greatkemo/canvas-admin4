@@ -700,6 +700,10 @@ file_user_search() {
     # Pad the search_pattern to a width of 30 with trailing spaces
     #printf -v line_padded "%-40s" "$search_pattern"
     
+    # Then, use the pad_number function when padding current_line and total_lines
+    current_line_padded=$(pad_number "$current_line" "$num_digits")
+    total_lines_padded=$(pad_number "$total_lines" "$num_digits")
+
     # Get the terminal width
     terminal_width=$(tput cols)
 
@@ -712,11 +716,7 @@ file_user_search() {
     # Generate the padding string with dots and a space
     padding_dots=$(printf "%*s" "$((padding_width - 1))" "")
     padding_dots=${padding_dots// /.}
-    line_padded="$search_pattern :($current_line_padded/$total_lines_padded)$padding_dots"
-    
-    # Then, use the pad_number function when padding current_line and total_lines
-    current_line_padded=$(pad_number "$current_line" "$num_digits")
-    total_lines_padded=$(pad_number "$total_lines" "$num_digits")
+    line_padded="$search_pattern $padding_dots :($current_line_padded/$total_lines_padded)"
 
  # Check if the cache file exists
     log "debug" "Checking if the cache file exists..."
@@ -764,7 +764,7 @@ file_user_search() {
     # enter the user's choice in the variable below
 
     # Display the current line number and the total number of lines
-    log "info" "Finished processing $line_padded :($current_line_padded/$total_lines_padded)"
+    log "info" "Finished processing: $line_padded"
     # Check if the user is in the cache
     if [[ "$user_in_cache" == "true" ]]; then
       log "debug" "User found in cache. Using cached data."
