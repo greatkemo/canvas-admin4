@@ -544,37 +544,45 @@ input_user_search() {
     search_pattern="${firstname} ${lastname}" 
     log "debug" "Search pattern updated to: $search_pattern"
   fi
-  # Check if the cache file exists
-  log "debug" "Checking if the cache file exists..."
-  if [[ -f "$cache_file" ]]; then
-    log "debug" "Cache file exists." 
-    # If yes, check if the user is in the cache
-    log "debug" "Checking if the user is in the cache..."
-    cached_user=$(grep -i "$search_pattern" "$cache_file")
+      # Check if the cache file exists
+    log "debug" "Checking if the cache file exists..."
+    if [[ -f "$cache_file" ]]; then
+      log "debug" "Cache file exists." 
+      # If yes, check if the user is in the cache
+      log "debug" "Checking if the user is in the cache..."
+      cached_user=$(grep -i "$search_pattern" "$cache_file")
 
-    if [[ -n "$cached_user" ]]; then
-      # If the user is in the cache, use the cached data
-      log "debug" "User found in the cache."
-      user_in_cache="true"
-      response="$cached_user"
+      if [[ -n "$cached_user" ]]; then
+        # If the user is in the cache, use the cached data
+        log "debug" "User found in the cache."
+        user_in_cache="true"
+        response="$cached_user"
+      else
+        # If the user is not in the cache, perform the API request
+        log "debug" "User not found in the cache."
+        # Perform the API request to search for user(s)
+        log "debug" "Sending API request to search for user..."
+        if ! response=$(curl -sS -X GET "$api_endpoint" \
+          -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+          -G --data-urlencode "search_term=$search_pattern" \
+          --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
+          log "error" "Failed to fetch data from the Canvas API."
+          return 1
+        fi
+
+      fi
     fi
-  fi
-  # If the user is not in the cache (or the cache file does not exist), perform the API request
-  if [[ -z "$response" ]]; then
-    log "debug" "User not found in the cache."
-    # Perform the API request to search for user(s)
-    log "info" "Sending API request to search for user..."
-    if ! response=$(curl -sS -X GET "$api_endpoint" \
-      -H "Authorization: Bearer ${CANVAS_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-      -G --data-urlencode "search_term=$search_pattern" \
-      --data-urlencode "include[]=email" --data-urlencode "include[]=enrollments"); then
-      log "error" "Failed to fetch data from the Canvas API."
-      return 1
+    # If the user is not in the cache (or the cache file does not exist), perform the API request
+    # Check if the response is empty
+    if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
+      log "warn" "No users found matching the pattern: $search_pattern"
+      return
     fi
-    # Add the user to the cache
-    log "debug" "Adding the user to the cache..."
-    echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .sortable_name, .short_name, .email] | @csv' >> "$cache_file"
-  fi
+    if [[ "$user_in_cache" == "false" ]]; then
+      # If the user is not in the cache, update the cache file
+      log "debug" "Updating the cache file..."
+      echo "$response" | jq -r '.[] | [.id, .sis_user_id, .login_id, .name, .email] | @csv' >> "$cache_file"
+    fi
   # Check if the response is empty
   if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
     log "info" "No users found matching the pattern: $search_pattern"
@@ -611,7 +619,6 @@ input_user_search() {
     echo "$response" | jq -r '. | "CANVAS_USER_ID: \(.id)\nUSER_ID: \(.sis_user_id)\nLOGIN_ID: \(.login_id)\nFULL_NAME: \(.name)\nEMAIL: \(.email)\n"'
   fi
 
-
   # Prompt for download
   while true; do
     read -rp "Would you like to download the CSV file? (y/n) " yn
@@ -629,6 +636,8 @@ input_user_search() {
   done
   log "info" "END: the function input_user_search()."
 }
+
+
 
 file_user_search() {
   # This function searches for users based on an input file and saves the results in a CSV file
