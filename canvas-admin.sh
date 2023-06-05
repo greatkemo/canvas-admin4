@@ -660,11 +660,34 @@ file_user_search() {
   # Calculate the number of digits in total_lines
   local num_digits=${#total_lines}
   log "debug" "Number of digits in total_lines: $num_digits"
-  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ACCOUNT_ID/users"
+  local api_endpoint="${CANVAS_INSTITUTE_URL}/accounts/$CANVAS_ROOT_ACCOUNT_ID/users"
   log "debug" "API endpoint: $api_endpoint"
   local cache_file="${CANVAS_ADMIN_CACHE}user_directory.csv"
   log "debug" "Cache file: $cache_file"
   local user_in_cache="false"
+
+  # Disect the search pattern to perform a more accurate search
+  perform_grep_search() {
+      local full_name="$1"
+      local file="$2"
+
+      # Break the full name into an array of words
+      IFS=' ' read -r -a words <<< "$full_name"
+
+      # Create all combinations of the words
+      local num_words=${#words[@]}
+      for ((i=0; i<$num_words; i++)); do
+          for ((j=i+1; j<=$num_words; j++)); do
+              local name_part="${words[@]:i:j}"
+              grep -i "$name_part" "$file"
+              if [ $? -eq 0 ]; then
+                  return 0
+              fi
+          done
+      done
+
+      return 1
+  }
 
   # Define a function to pad a number with leading zeros
   pad_number() {
@@ -724,7 +747,7 @@ file_user_search() {
       log "debug" "Cache file exists." 
       # If yes, check if the user is in the cache
       log "debug" "Checking if the user is in the cache..."
-      cached_user=$(grep -i "$search_pattern" "$cache_file")
+      cached_user=$(perform_grep_search "$search_pattern" "$cache_file")
 
       if [[ -n "$cached_user" ]]; then
         # If the user is in the cache, use the cached data
@@ -758,7 +781,7 @@ file_user_search() {
       # Check if the search pattern is in the cache
       log "debug" "Checking if the search pattern is in the cache..."
       cached_user=""
-      cached_user=$(grep -i "$valid_search_pattern" "$cache_file")
+      cached_user=$(perform_grep_search "$valid_search_pattern" "$cache_file")
       if [[ -n "$cached_user" ]]; then
         # If the user is in the cache, use the cached data
         log "debug" "User found in the cache."
