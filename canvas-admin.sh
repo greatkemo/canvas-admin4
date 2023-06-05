@@ -749,10 +749,21 @@ file_user_search() {
     log "debug" "Checking if the response is empty..."
     log "debug" "Response: $response"
 
-    if [[ -z "$response" ]] || [[ "$response" == "[]" ]]; then
-      log "warn" "No users found matching the pattern: $search_pattern"
-      return
-    fi
+    while [[ -z "$response" ]] || [[ "$response" == "[]" ]]; do
+      log "warn" "No users found matching the search pattern: $search_pattern"
+      read -rp "Please provide a valid search pattern: " search_pattern
+      # Ask the user to a valid search pattern and update the search_pattern variable
+      log "debug" "User entered: $search_pattern"
+      # Check if the search pattern is in the cache
+      log "debug" "Checking if the search pattern is in the cache..."
+      cached_user=$(grep -i "$search_pattern" "$cache_file")
+      if [[ -n "$cached_user" ]]; then
+        # If the user is in the cache, use the cached data
+        log "debug" "User found in the cache."
+        response="$cached_user"
+        user_in_cache="true"
+      fi
+    done
     if [[ "$user_in_cache" == "false" ]]; then
       # If the user is not in the cache, update the cache file
       log "debug" "Updating the cache file..."
@@ -764,7 +775,8 @@ file_user_search() {
     # enter the user's choice in the variable below
 
     # Display the current line number and the total number of lines
-    log "info" "Finished processing: $line_padded"
+    log "debug" "Finished processing: $search_pattern"
+    echo "[Finished processing]: $line_padded"
     # Check if the user is in the cache
     if [[ "$user_in_cache" == "true" ]]; then
       log "debug" "User found in cache. Using cached data."
