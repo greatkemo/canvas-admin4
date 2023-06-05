@@ -711,7 +711,7 @@ file_user_search() {
     search_pattern_length=${#search_pattern}
 
     # Calculate the available width for padding
-    padding_width=$((terminal_width - search_pattern_length - 50))  # Adjust the value '7' as per your requirement
+    padding_width=$((terminal_width - search_pattern_length - 75))  # Adjust the value '7' as per your requirement
 
     # Generate the padding string with dots and a space
     padding_dots=$(printf "%*s" "$((padding_width - 1))" "")
