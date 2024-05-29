@@ -950,6 +950,12 @@ course_configuration() {
         exit 1
     esac
 
+    # Validate JSON payload
+    if ! echo "$api_data" | jq . >/dev/null 2>&1; then
+      log "error" "Invalid JSON payload: $api_data"
+      exit 1
+    fi
+
     # Perform the API request to update course settings
     log "info" "Sending API request to update course settings to $api_endpoint with data $api_data..."
     response=$(curl -s -X PUT "$api_endpoint" \
@@ -961,12 +967,13 @@ course_configuration() {
 
     # Check if the response contains errors
     if echo "$response" | jq '.errors' >/dev/null 2>&1; then
-      log "error" "Failed to update course settings for course ID: $id. Response: $response"
+      log "error" "Failed to update course settings for course ID: $id. Response: $(echo "$response" | jq '.errors')"
     else
       log "info" "Course settings successfully applied to course ID: $id"
     fi
   done
 }
+
 
 
 course_books() {
