@@ -911,6 +911,8 @@ course_configuration() {
   setting_type="$1"
   setting_value="$2"
   course_id="$3"
+  file_option="$4"
+  file_path="$5"
 
   log "info" "Initiating course settings update for course ID: $course_id"
 
@@ -937,14 +939,22 @@ course_configuration() {
       exit 1
   esac
 
-  # Perform the API request to update course settings
-  log "info" "Sending API request to update course settings..."
-  curl -s -X PUT "$api_endpoint" \
-    -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$api_data"
+  if [ "$file_option" = "-file" ]; then
+    # Loop through the file and process each course id
+    while IFS= read -r line
+    do
+      course_configuration "$setting_type" "$setting_value" "$line"
+    done < "$file_path"
+  else
+    # Perform the API request to update course settings
+    log "info" "Sending API request to update course settings..."
+    curl -s -X PUT "$api_endpoint" \
+      -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$api_data"
 
-  log "info" "Course settings successfully applied to course ID: $course_id"
+    log "info" "Course settings successfully applied to course ID: $course_id"
+  fi
 }
 
 course_books() {
@@ -1169,10 +1179,11 @@ usage() {
   echo ""
   echo "courseconfig"
   echo "  Apply settings to a course using the specified arguments."
-  echo "  Format: ./canvas-admin.sh courseconfig [timezone|config|all] [arg1] [arg2] [course id]"
+  echo "  Format: ./canvas-admin.sh courseconfig [timezone|config|all] [arg1] [arg2] [course id] [-file /path/to/file]"
   echo "  Example: ./canvas-admin.sh courseconfig -timezone \"America/New_York\" 12345"
   echo "           ./canvas-admin.sh courseconfig -prefs 12345"
   echo "           ./canvas-admin.sh courseconfig -all \"America/New_York\" 12345"
+  echo "           ./canvas-admin.sh courseconfig -timezone \"America/New_York\" -file \"/path/to/file.txt\""
   echo ""
   echo "books"
   echo "  Create a module called 'Online Textbooks' and add external links to the module based on the book type."
@@ -1249,7 +1260,6 @@ while [[ "$#" -gt 0 ]]; do
       fi
       shift
       ;;
-
     createcourse) # create a new course
       shift
       if [[ -n "$1" ]] && [[ -f "$1" ]]; then
@@ -1263,8 +1273,17 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     courseconfig) # apply course configuration
       shift
-      course_configuration "$1" "$2" "$3"
-      shift 3
+      if [[ "$4" == "-file" ]]; then
+        if [[ -z "$5" ]]; then
+          log "error" "Missing input file. Please provide an input file path."
+          exit 1
+        elif [[ ! -f "$5" ]]; then
+          log "error" "Input file not found. Please provide a valid input file path."
+          exit 1
+        fi
+      fi
+      course_configuration "$1" "$2" "$3" "$4" "$5"
+      shift 5
       ;;
     books) # add course books
       shift
@@ -1281,6 +1300,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 1
       ;;
   esac
+done
 done
 
 
