@@ -914,38 +914,41 @@ course_configuration() {
   file_option="$4"
   file_path="$5"
 
-  log "info" "Initiating course settings update for course ID: $course_id"
-
-  api_endpoint="$CANVAS_INSTITUTE_URL/courses/$course_id"
-
-  case "$setting_type" in
-    -timezone)
-      # Set the course's IANA time zone
-      api_data="{\"course\": {\"time_zone\": \"$setting_value\"}}"
-      log "info" "Setting course time zone to: $setting_value"
-      ;;
-    -prefs)
-      # Set the course's hide_distribution_graphs to true
-      api_data="{\"course\": {\"hide_distribution_graphs\": true}}"
-      log "info" "Hiding course distribution graphs"
-      ;;
-    -all)
-      # Set the course's IANA time zone and hide_distribution_graphs
-      api_data="{\"course\": {\"time_zone\": \"$setting_value\", \"hide_distribution_graphs\": true}}"
-      log "info" "Setting course time zone to: $setting_value and hiding distribution graphs"
-      ;;
-    *)
-      log "error" "Invalid setting type. Please use 'timezone', 'config', or 'all'."
-      exit 1
-  esac
-
+  # If the -file option is used, read the course ids from the file
+  # Otherwise, use the provided course id
   if [ "$file_option" = "-file" ]; then
-    # Loop through the file and process each course id
-    while IFS= read -r line
-    do
-      course_configuration "$setting_type" "$setting_value" "$line"
-    done < "$file_path"
+    course_ids=$(cat "$file_path")
   else
+    course_ids="$course_id"
+  fi
+
+  # Loop through the course ids
+  for id in $course_ids; do
+    log "info" "Initiating course settings update for course ID: $id"
+
+    api_endpoint="$CANVAS_INSTITUTE_URL/courses/$id"
+
+    case "$setting_type" in
+      -timezone)
+        # Set the course's IANA time zone
+        api_data="{\"course\": {\"time_zone\": \"$setting_value\"}}"
+        log "info" "Setting course time zone to: $setting_value"
+        ;;
+      -prefs)
+        # Set the course's hide_distribution_graphs to true
+        api_data="{\"course\": {\"hide_distribution_graphs\": true}}"
+        log "info" "Hiding course distribution graphs"
+        ;;
+      -all)
+        # Set the course's IANA time zone and hide_distribution_graphs
+        api_data="{\"course\": {\"time_zone\": \"$setting_value\", \"hide_distribution_graphs\": true}}"
+        log "info" "Setting course time zone to: $setting_value and hiding distribution graphs"
+        ;;
+      *)
+        log "error" "Invalid setting type. Please use 'timezone', 'config', or 'all'."
+        exit 1
+    esac
+
     # Perform the API request to update course settings
     log "info" "Sending API request to update course settings..."
     curl -s -X PUT "$api_endpoint" \
@@ -953,8 +956,8 @@ course_configuration() {
       -H "Content-Type: application/json" \
       -d "$api_data"
 
-    log "info" "Course settings successfully applied to course ID: $course_id"
-  fi
+    log "info" "Course settings successfully applied to course ID: $id"
+  done
 }
 
 course_books() {
