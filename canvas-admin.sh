@@ -966,15 +966,13 @@ course_configuration() {
     log "debug" "API response: $response"
 
     # Check if the response contains errors
-    if echo "$response" | jq '.errors' >/dev/null 2>&1; then
-      log "error" "Failed to update course settings for course ID: $id. Response: $(echo "$response" | jq '.errors')"
-    else
+    if echo "$response" | jq '.errors' | grep -q null; then
       log "info" "Course settings successfully applied to course ID: $id"
+    else
+      log "error" "Failed to update course settings for course ID: $id. Response: $(echo "$response" | jq '.errors')"
     fi
   done
 }
-
-
 
 course_books() {
   validate_setup
