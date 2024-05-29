@@ -1281,19 +1281,18 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     courseconfig) # apply course configuration
       shift
-      if [[ "$4" == "-file" ]]; then
-        if [[ -z "$5" ]]; then
-          log "error" "Missing input file. Please provide an input file path."
-          exit 1
-        elif [[ ! -f "$5" ]]; then
-          log "error" "Input file not found. Please provide a valid input file path."
-          exit 1
-        fi
-        course_configuration "$1" "$2" "" "$4" "$5"
+      setting_type="$1"
+      setting_value="$2"
+      shift 2
+      if [[ "$1" == "-file" ]]; then
+        file_option="$1"
+        file_path="$2"
+        course_configuration "$setting_type" "$setting_value" "" "$file_option" "$file_path"
       else
-        course_configuration "$1" "$2" "$3"
+        course_id="$1"
+        course_configuration "$setting_type" "$setting_value" "$course_id"
       fi
-      shift 5
+      shift
       ;;
     books) # add course books
       shift
