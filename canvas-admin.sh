@@ -951,12 +951,15 @@ course_configuration() {
     esac
 
     # Perform the API request to update course settings
-    log "info" "Sending API request to update course settings..."
+    log "info" "Sending API request to update course settings to $api_endpoint with data $api_data..."
     response=$(curl -s -X PUT "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
       -d "$api_data")
 
+    log "debug" "API response: $response"
+
+    # Check if the response contains errors
     if echo "$response" | jq '.errors' >/dev/null 2>&1; then
       log "error" "Failed to update course settings for course ID: $id. Response: $response"
     else
@@ -964,6 +967,7 @@ course_configuration() {
     fi
   done
 }
+
 
 course_books() {
   validate_setup
