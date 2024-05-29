@@ -1284,8 +1284,10 @@ while [[ "$#" -gt 0 ]]; do
           log "error" "Input file not found. Please provide a valid input file path."
           exit 1
         fi
+        course_configuration "$1" "$2" "-file" "$5"
+      else
+        course_configuration "$1" "$2" "$3"
       fi
-      course_configuration "$1" "$2" "$3" "$4" "$5"
       shift 5
       ;;
     books) # add course books
