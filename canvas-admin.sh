@@ -705,9 +705,6 @@ perform_grep_search() {
     ' "$file"
 }
 
-
-
-
   # Define a function to pad a number with leading zeros
   pad_number() {
     local number=$1
@@ -917,6 +914,10 @@ course_configuration() {
   # If the -file option is used, read the course ids from the file
   # Otherwise, use the provided course id
   if [ "$file_option" = "-file" ]; then
+    if [ ! -f "$file_path" ]; then
+      log "error" "File $file_path not found. Please provide a valid file path."
+      exit 1
+    fi
     course_ids=$(cat "$file_path")
   else
     course_ids="$course_id"
@@ -945,18 +946,22 @@ course_configuration() {
         log "info" "Setting course time zone to: $setting_value and hiding distribution graphs"
         ;;
       *)
-        log "error" "Invalid setting type. Please use 'timezone', 'config', or 'all'."
+        log "error" "Invalid setting type. Please use 'timezone', 'prefs', or 'all'."
         exit 1
     esac
 
     # Perform the API request to update course settings
     log "info" "Sending API request to update course settings..."
-    curl -s -X PUT "$api_endpoint" \
+    response=$(curl -s -X PUT "$api_endpoint" \
       -H "Authorization: Bearer $CANVAS_ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
-      -d "$api_data"
+      -d "$api_data")
 
-    log "info" "Course settings successfully applied to course ID: $id"
+    if echo "$response" | jq '.errors' >/dev/null 2>&1; then
+      log "error" "Failed to update course settings for course ID: $id. Response: $response"
+    else
+      log "info" "Course settings successfully applied to course ID: $id"
+    fi
   done
 }
 
@@ -1284,7 +1289,7 @@ while [[ "$#" -gt 0 ]]; do
           log "error" "Input file not found. Please provide a valid input file path."
           exit 1
         fi
-        course_configuration "$1" "$2" "-file" "$5"
+        course_configuration "$1" "$2" "" "$4" "$5"
       else
         course_configuration "$1" "$2" "$3"
       fi
@@ -1306,8 +1311,3 @@ while [[ "$#" -gt 0 ]]; do
       ;;
   esac
 done
-done
-
-
-
-
